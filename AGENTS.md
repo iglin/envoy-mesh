@@ -6,22 +6,46 @@ Kubernetes Service Mesh built on [Envoy Proxy](https://www.envoyproxy.io/). Envo
 
 ```
 envoy-mesh/
-├── proto/                  # Envoy protobuf definitions — source of truth for all config types
-│   └── download.sh         # downloads proto files from a given envoyproxy/envoy git tag
-├── crds/                   # Generated CRD manifests (YAML) — do not edit by hand
-├── crd-gen/                # Go CLI that generates crds/ from proto/
-└── control-plane/          # Kubernetes operator (kubebuilder v4, go module: github.com/iglin/envoy-mesh/control-plane)
-    ├── api/v1alpha1/       # Go types for all CRDs (group: mesh.envoy.io)
-    │   ├── envoyproxy_types.go
-    │   ├── {listener,cluster,route*,clusterloadassignment}_types.go
-    │   └── zz_generated.deepcopy.go
-    ├── internal/
-    │   ├── controller/
-    │   │   └── envoyproxy_controller.go  # single reconciler, watches all xDS resource types
-    │   └── xds/
-    │       ├── server.go   # go-control-plane gRPC xDS server + connection tracking
-    │       └── snapshot.go # protojson → Envoy proto → xDS snapshot
-    └── cmd/main.go         # starts controller-runtime manager + xDS gRPC server
+├── proto/                    # Envoy protobuf definitions — source of truth for all config types
+│   └── download.sh           # downloads proto files from a given envoyproxy/envoy git tag
+├── crds/                     # Generated CRD manifests (YAML) — do not edit by hand
+├── crd-gen/                  # Go CLI that generates crds/ from proto/
+├── envoy/                    # Envoy proxy image and Helm chart
+│   ├── Dockerfile            # wraps envoyproxy/envoy; config mounted from ConfigMap
+│   ├── Makefile              # docker-build-push, helm-package, helm-push
+│   └── helm/                 # Helm chart: Deployment + Service + ConfigMap (bootstrap config)
+│       ├── Chart.yaml
+│       ├── values.yaml       # name, image, xds.controlPlaneHost/Port, service.port, admin.port
+│       └── templates/
+│           ├── configmap.yaml    # Envoy bootstrap config — node.id = <name>.<namespace>
+│           ├── deployment.yaml
+│           └── service.yaml
+├── control-plane/            # Kubernetes operator (kubebuilder v4, go module: github.com/iglin/envoy-mesh/control-plane)
+│   ├── api/v1alpha1/         # Go types for all CRDs (group: mesh.envoy.io)
+│   │   ├── envoyproxy_types.go
+│   │   ├── {listener,cluster,route*,clusterloadassignment}_types.go
+│   │   └── zz_generated.deepcopy.go
+│   ├── internal/
+│   │   ├── controller/
+│   │   │   └── envoyproxy_controller.go  # single reconciler, watches all xDS resource types
+│   │   └── xds/
+│   │       ├── server.go     # go-control-plane gRPC xDS server + connection tracking
+│   │       └── snapshot.go   # protojson → Envoy proto → xDS snapshot
+│   ├── cmd/main.go           # starts controller-runtime manager + xDS gRPC server
+│   └── helm/                 # Helm chart: Deployment + Service + RBAC
+│       ├── Chart.yaml
+│       ├── values.yaml       # image, xds.port, health.port, leaderElection, service, resources
+│       └── templates/
+│           ├── deployment.yaml
+│           ├── service.yaml          # ClusterIP on port 18000 (xds-grpc)
+│           ├── serviceaccount.yaml
+│           ├── clusterrole.yaml      # mesh.envoy.io RBAC from kubebuilder markers
+│           ├── clusterrolebinding.yaml
+│           ├── role.yaml             # leader-election (configmaps/leases/events)
+│           └── rolebinding.yaml
+└── .github/workflows/
+    ├── publish-control-plane.yml  # triggered by control-plane/v* tags
+    └── publish-envoy.yml          # triggered by envoy/v* tags
 ```
 
 ## CRD model
@@ -64,6 +88,14 @@ User CR applied → EnvoyProxyReconciler triggered (via Watches on all xDS resou
 - **Snapshot versioning**: first 16 hex chars of SHA-256 over all `resourceVersion` strings — unchanged configs never push a new snapshot.
 - **xDS server**: a single `go-control-plane` gRPC server per process. `CallbackFuncs.StreamRequestFunc` marks a node connected on first request; `StreamClosedFunc` unmarks it. Connection state is reflected in the `Connected` status condition.
 
+### Envoy bootstrap config
+
+The `envoy/helm` ConfigMap renders `node.id` and `node.cluster` as
+`{{ .Values.name }}.{{ .Release.Namespace }}` at Helm install time. This must
+match the `EnvoyProxy` CR name and namespace. The static `xds_cluster` points
+at `{{ .Values.xds.controlPlaneHost }}:{{ .Values.xds.controlPlanePort }}`
+(default `envoy-mesh-control-plane:18000`) using HTTP/2 for gRPC.
+
 ## Workflows
 
 ### Update proto sources
@@ -100,20 +132,45 @@ go run ./cmd/main.go \
   --health-probe-bind-address=:8081
 ```
 
-### Build & push the operator image
+### Build & push images
 ```bash
+# Operator
 cd control-plane
 make docker-build docker-push IMG=<registry>/envoy-mesh-control-plane:<tag>
+
+# Envoy
+cd envoy
+make docker-build-push IMG=<registry>/envoy-mesh-envoy:<tag>
 ```
 
 ### Deploy to cluster
 ```bash
-# Apply CRDs first (always before a new operator version)
+# 1. Apply CRDs (always before a new operator version)
 kubectl apply -f crds/
 
-# Deploy the operator
-cd control-plane
-make deploy IMG=<registry>/envoy-mesh-control-plane:<tag>
+# 2. Deploy operator via Helm
+helm install control-plane control-plane/helm \
+  --namespace envoy-mesh-system --create-namespace \
+  --set image.repository=<registry>/envoy-mesh-control-plane \
+  --set image.tag=<tag>
+
+# 3. Deploy Envoy proxy via Helm (one release per EnvoyProxy CR)
+helm install envoy envoy/helm \
+  --namespace default --create-namespace \
+  --set image.repository=<registry>/envoy-mesh-envoy \
+  --set image.tag=<tag>
+```
+
+### Publish Helm charts
+```bash
+cd control-plane && make helm-push HELM_REGISTRY=ghcr.io/<org>/envoy-mesh/charts
+cd envoy         && make helm-push HELM_REGISTRY=ghcr.io/<org>/envoy-mesh/charts
+```
+
+Or push a versioned tag to trigger GitHub Actions:
+```bash
+git tag control-plane/v1.0.0 && git push origin control-plane/v1.0.0
+git tag envoy/v1.0.0         && git push origin envoy/v1.0.0
 ```
 
 ## Rules
@@ -126,6 +183,8 @@ make deploy IMG=<registry>/envoy-mesh-control-plane:<tag>
 - After modifying `control-plane/api/` types, always re-run `controller-gen` to regenerate `zz_generated.deepcopy.go`.
 - The control-plane Go module is `github.com/iglin/envoy-mesh/control-plane` (separate from any root module). Run `go` commands from inside `control-plane/`.
 - Do not add a `Status` subresource or status fields to xDS resource CRs (Listener, Cluster, etc.) — status lives only on `EnvoyProxy`.
+- `envoy/helm` and `control-plane/helm` are hand-authored — do not overwrite with kubebuilder or crd-gen tooling.
+- The `name` value in `envoy/helm/values.yaml` must match the `EnvoyProxy` CR name deployed in the same namespace.
 
 ## Key libraries
 

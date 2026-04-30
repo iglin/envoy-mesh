@@ -1,0 +1,85 @@
+name: Publish Envoy image and Helm chart
+
+on:
+  push:
+    tags:
+      - "envoy/v*"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/envoy-mesh-envoy
+  CHART_REGISTRY: ghcr.io/${{ github.repository_owner }}/envoy-mesh/charts
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Build, push image and chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Parse version from tag
+        id: version
+        # Tag format: envoy/v1.2.3  →  version = 1.2.3
+        run: echo "value=${GITHUB_REF_NAME#envoy/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Docker image ────────────────────────────────────────────────────────
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbea8a53407b573b2e6c86e782ba # v5.7.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.value }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        with:
+          context: envoy/
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # ── Helm chart ──────────────────────────────────────────────────────────
+
+      - name: Install Helm
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+
+      - name: Update chart version and appVersion
+        run: |
+          VERSION=${{ steps.version.outputs.value }}
+          sed -i "s/^version:.*/version: ${VERSION}/" envoy/helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" envoy/helm/Chart.yaml
+
+      - name: Update image tag in values
+        run: |
+          VERSION=${{ steps.version.outputs.value }}
+          sed -i "s|^  tag:.*|  tag: ${VERSION}|" envoy/helm/values.yaml
+          sed -i "s|^  repository:.*|  repository: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}|" envoy/helm/values.yaml
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p envoy/dist
+          helm package envoy/helm/ --destination envoy/dist/
+
+      - name: Push Helm chart to OCI registry
+        run: |
+          helm push envoy/dist/envoy-${{ steps.version.outputs.value }}.tgz \
+            oci://${{ env.CHART_REGISTRY }}

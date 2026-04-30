@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "control-plane.fullname" . }}
+  labels:
+    {{- include "control-plane.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [mesh.envoy.io]
+    resources: [envoyproxies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [mesh.envoy.io]
+    resources: [envoyproxies/status]
+    verbs: [get, update, patch]
+  - apiGroups: [mesh.envoy.io]
+    resources: [envoyproxies/finalizers]
+    verbs: [update]
+  - apiGroups: [mesh.envoy.io]
+    resources: [listeners, clusters, routeconfigurations, scopedrouteconfigurations, clusterloadassignments]
+    verbs: [get, list, watch]

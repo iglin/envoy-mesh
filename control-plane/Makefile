@@ -1,5 +1,7 @@
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG          ?= controller:latest
+HELM_REGISTRY ?= ghcr.io/iglin/envoy-mesh/charts
+CHART_VERSION := $(shell grep '^version:' helm/Chart.yaml | awk '{print $$2}')
 # YEAR defines the year value used for substituting the YEAR placeholder in the boilerplate header.
 YEAR ?= $(shell date +%Y)
 
@@ -149,6 +151,17 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && "$(KUSTOMIZE)" edit set image controller=${IMG}
 	"$(KUSTOMIZE)" build config/default > dist/install.yaml
+
+##@ Helm
+
+.PHONY: helm-package
+helm-package: ## Package the Helm chart into dist/.
+	mkdir -p dist
+	helm package helm/ --destination dist/
+
+.PHONY: helm-push
+helm-push: helm-package ## Package and push the Helm chart to the OCI registry.
+	helm push dist/envoy-mesh-control-plane-$(CHART_VERSION).tgz oci://$(HELM_REGISTRY)
 
 ##@ Deployment
 

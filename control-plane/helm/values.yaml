@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: envoy-mesh-control-plane
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# xDS gRPC server — Envoy proxies connect here.
+xds:
+  port: 18000
+
+# Health/readiness probe endpoint.
+health:
+  port: 8081
+
+leaderElection:
+  enabled: true
+
+service:
+  type: ClusterIP
+  port: 18000
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,37 @@
+# name is used as the Deployment, Service, and ConfigMap name.
+# It must match the EnvoyProxy CR name deployed in the same namespace.
+# node.id and node.cluster in the bootstrap config are derived as "<name>.<namespace>".
+name: envoy
+
+replicaCount: 1
+
+image:
+  repository: envoy-mesh-envoy
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# xDS control-plane connection details.
+xds:
+  # Kubernetes Service hostname of the envoy-mesh control-plane.
+  # By default resolves within the same namespace; set a FQDN for cross-namespace.
+  controlPlaneHost: envoy-mesh-control-plane
+  controlPlanePort: 18000
+
+service:
+  type: ClusterIP
+  # Port exposed by the Service. Should match a Listener pushed by the control plane.
+  port: 8080
+  # targetPort matches the containerPort set in the Deployment.
+  targetPort: 8080
+
+# Admin API is exposed only inside the pod on port 9901 and is not part of the Service.
+admin:
+  port: 9901
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

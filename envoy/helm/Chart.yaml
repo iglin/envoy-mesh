@@ -1,0 +1,6 @@
+apiVersion: v2
+name: envoy
+description: Envoy proxy managed by the envoy-mesh control plane via xDS/ADS.
+type: application
+version: 0.1.0
+appVersion: "latest"
