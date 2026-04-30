@@ -70,7 +70,7 @@ func main() {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "545d2aa8.mesh.envoy.io",
+		LeaderElectionID:       "545d2aa8.mesh.iglin.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "Failed to create manager")

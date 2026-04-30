@@ -162,7 +162,7 @@ helm install control-plane \
 One CR per Envoy instance, in the namespace where the proxy will run:
 
 ```yaml
-apiVersion: mesh.envoy.io/v1alpha1
+apiVersion: mesh.iglin.io/v1alpha1
 kind: EnvoyProxy
 metadata:
   name: edge-proxy
@@ -196,7 +196,7 @@ helm install edge-proxy \
 ### 5. Apply xDS resource CRs
 
 ```yaml
-apiVersion: mesh.envoy.io/v1alpha1
+apiVersion: mesh.iglin.io/v1alpha1
 kind: Listener
 metadata:
   name: my-listener

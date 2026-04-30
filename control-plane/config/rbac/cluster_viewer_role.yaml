@@ -1,7 +1,7 @@
 # This rule is not used by the project control-plane itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants read-only access to mesh.mesh.envoy.io resources.
+# Grants read-only access to mesh.mesh.iglin.io resources.
 # This role is intended for users who need visibility into these resources
 # without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
 
@@ -14,7 +14,7 @@ metadata:
   name: cluster-viewer-role
 rules:
 - apiGroups:
-  - mesh.mesh.envoy.io
+  - mesh.mesh.iglin.io
   resources:
   - clusters
   verbs:
@@ -22,7 +22,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - mesh.mesh.envoy.io
+  - mesh.mesh.iglin.io
   resources:
   - clusters/status
   verbs:

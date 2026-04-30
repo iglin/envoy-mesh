@@ -21,7 +21,7 @@ envoy-mesh/
 │           ├── deployment.yaml
 │           └── service.yaml
 ├── control-plane/            # Kubernetes operator (kubebuilder v4, go module: github.com/iglin/envoy-mesh/control-plane)
-│   ├── api/v1alpha1/         # Go types for all CRDs (group: mesh.envoy.io)
+│   ├── api/v1alpha1/         # Go types for all CRDs (group: mesh.iglin.io)
 │   │   ├── envoyproxy_types.go
 │   │   ├── {listener,cluster,route*,clusterloadassignment}_types.go
 │   │   └── zz_generated.deepcopy.go
@@ -39,7 +39,7 @@ envoy-mesh/
 │           ├── deployment.yaml
 │           ├── service.yaml          # ClusterIP on port 18000 (xds-grpc)
 │           ├── serviceaccount.yaml
-│           ├── clusterrole.yaml      # mesh.envoy.io RBAC from kubebuilder markers
+│           ├── clusterrole.yaml      # mesh.iglin.io RBAC from kubebuilder markers
 │           ├── clusterrolebinding.yaml
 │           ├── role.yaml             # leader-election (configmaps/leases/events)
 │           └── rolebinding.yaml
@@ -52,7 +52,7 @@ envoy-mesh/
 
 There are two categories of CRDs:
 
-**`EnvoyProxy`** (`crds/envoyproxies.mesh.envoy.io.yaml`) — hand-authored, represents one Envoy proxy instance managed by the control-plane. Spec is intentionally empty; the control-plane derives xDS node identifiers from CR metadata:
+**`EnvoyProxy`** (`crds/envoyproxies.mesh.iglin.io.yaml`) — hand-authored, represents one Envoy proxy instance managed by the control-plane. Spec is intentionally empty; the control-plane derives xDS node identifiers from CR metadata:
 - `node.id = {name}.{namespace}`
 - `node.cluster = {name}.{namespace}`
 
@@ -176,7 +176,7 @@ git tag envoy/v1.0.0         && git push origin envoy/v1.0.0
 ## Rules
 
 - `crds/` xDS CRDs are fully generated — always edit `proto/` and re-run `crd-gen`.
-- `crds/envoyproxies.mesh.envoy.io.yaml` is hand-authored — do not overwrite with crd-gen.
+- `crds/envoyproxies.mesh.iglin.io.yaml` is hand-authored — do not overwrite with crd-gen.
 - Every xDS resource CR must have a `targetRef` pointing to an existing `EnvoyProxy`.
 - CRDs must be applied to the cluster before deploying a new operator version.
 - `Bootstrap` must never become a CRD.

@@ -104,7 +104,7 @@ func buildCRD(msg *parser.Message, cfg Config, reg *parser.Registry) *apiextensi
 		ObjectMeta: metav1.ObjectMeta{
 			Name: plural + "." + cfg.Group,
 			Annotations: map[string]string{
-				"mesh.envoy.io/proto-source": msg.FullName,
+				"mesh.iglin.io/proto-source": msg.FullName,
 			},
 		},
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{

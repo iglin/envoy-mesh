@@ -35,7 +35,7 @@ func init() {
 	f := rootCmd.Flags()
 	f.StringVar(&cfg.ProtoDir, "proto-dir", "../proto", "path to the proto source directory")
 	f.StringVar(&cfg.OutDir, "out-dir", "../crds", "output directory for generated CRD YAMLs")
-	f.StringVar(&cfg.Group, "group", "mesh.envoy.io", "CRD API group")
+	f.StringVar(&cfg.Group, "group", "mesh.iglin.io", "CRD API group")
 	f.StringVar(&cfg.Version, "version", "v1alpha1", "CRD API version")
 	f.StringSliceVarP(&cfg.Messages, "message", "m", nil,
 		"fully-qualified proto message name(s) to generate CRDs for\n"+

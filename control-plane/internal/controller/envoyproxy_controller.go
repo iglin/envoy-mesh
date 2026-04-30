@@ -45,14 +45,14 @@ type EnvoyProxyReconciler struct {
 	XDSServer *xds.Server
 }
 
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=envoyproxies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=envoyproxies/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=envoyproxies/finalizers,verbs=update
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=listeners,verbs=get;list;watch
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=clusters,verbs=get;list;watch
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=routeconfigurations,verbs=get;list;watch
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=scopedrouteconfigurations,verbs=get;list;watch
-// +kubebuilder:rbac:groups=mesh.envoy.io,resources=clusterloadassignments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=envoyproxies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=envoyproxies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=envoyproxies/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=listeners,verbs=get;list;watch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=clusters,verbs=get;list;watch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=routeconfigurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=scopedrouteconfigurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=mesh.iglin.io,resources=clusterloadassignments,verbs=get;list;watch
 
 func (r *EnvoyProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)

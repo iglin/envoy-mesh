@@ -1,4 +1,4 @@
-apiVersion: mesh.mesh.envoy.io/v1alpha1
+apiVersion: mesh.mesh.iglin.io/v1alpha1
 kind: RouteConfiguration
 metadata:
   labels:

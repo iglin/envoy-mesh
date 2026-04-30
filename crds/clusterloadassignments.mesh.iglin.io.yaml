@@ -3,10 +3,10 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    mesh.envoy.io/proto-source: envoy.config.endpoint.v3.ClusterLoadAssignment
-  name: clusterloadassignments.mesh.envoy.io
+    mesh.iglin.io/proto-source: envoy.config.endpoint.v3.ClusterLoadAssignment
+  name: clusterloadassignments.mesh.iglin.io
 spec:
-  group: mesh.envoy.io
+  group: mesh.iglin.io
   names:
     kind: ClusterLoadAssignment
     listKind: ClusterLoadAssignmentList
