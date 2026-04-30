@@ -6,11 +6,22 @@ Kubernetes Service Mesh built on [Envoy Proxy](https://www.envoyproxy.io/). Envo
 
 ```
 envoy-mesh/
-├── proto/          # Envoy protobuf definitions — source of truth for all config types
-│   └── download.sh # downloads proto files from a given envoyproxy/envoy git tag
-├── crds/           # Generated CRD manifests (YAML) — do not edit by hand
-└── crd-gen/        # Go CLI that generates crds/ from proto/
-└── control-plane/  # Kubernetes operator: watches CRs, pushes xDS snapshots to Envoy
+├── proto/                  # Envoy protobuf definitions — source of truth for all config types
+│   └── download.sh         # downloads proto files from a given envoyproxy/envoy git tag
+├── crds/                   # Generated CRD manifests (YAML) — do not edit by hand
+├── crd-gen/                # Go CLI that generates crds/ from proto/
+└── control-plane/          # Kubernetes operator (kubebuilder v4, go module: github.com/iglin/envoy-mesh/control-plane)
+    ├── api/v1alpha1/       # Go types for all CRDs (group: mesh.envoy.io)
+    │   ├── envoyproxy_types.go
+    │   ├── {listener,cluster,route*,clusterloadassignment}_types.go
+    │   └── zz_generated.deepcopy.go
+    ├── internal/
+    │   ├── controller/
+    │   │   └── envoyproxy_controller.go  # single reconciler, watches all xDS resource types
+    │   └── xds/
+    │       ├── server.go   # go-control-plane gRPC xDS server + connection tracking
+    │       └── snapshot.go # protojson → Envoy proto → xDS snapshot
+    └── cmd/main.go         # starts controller-runtime manager + xDS gRPC server
 ```
 
 ## CRD model
@@ -38,9 +49,20 @@ The control-plane groups xDS resource CRs by `targetRef` and builds one xDS snap
 ## How it works
 
 ```
-User CR applied → controller reconciles → translation layer builds Envoy protobuf
-→ xDS snapshot cache updated → Envoy proxies pull config via gRPC (ADS)
+User CR applied → EnvoyProxyReconciler triggered (via Watches on all xDS resource types)
+  → collect all xDS CRs with matching targetRef
+  → protojson.Unmarshal each CR spec → typed Envoy proto
+  → cache.NewSnapshot(version) → SnapshotCache.SetSnapshot(nodeID)
+  → Envoy proxies pull updated config via gRPC ADS (:18000)
+  → EnvoyProxy status updated (Connected / Ready conditions)
 ```
+
+### control-plane internals
+
+- **Single reconciler** (`EnvoyProxyReconciler`) owns the full reconcile loop. It watches `EnvoyProxy` directly and all five xDS resource types via `handler.EnqueueRequestsFromMapFunc`, mapping each CR's `targetRef` back to its owning `EnvoyProxy`.
+- **Spec storage**: xDS resource CR specs are stored as `runtime.RawExtension` (raw JSON). At reconcile time `protojson.Unmarshal` (with `DiscardUnknown: true`) converts them to typed Envoy proto messages.
+- **Snapshot versioning**: first 16 hex chars of SHA-256 over all `resourceVersion` strings — unchanged configs never push a new snapshot.
+- **xDS server**: a single `go-control-plane` gRPC server per process. `CallbackFuncs.StreamRequestFunc` marks a node connected on first request; `StreamClosedFunc` unmarks it. Connection state is reflected in the `Connected` status condition.
 
 ## Workflows
 
@@ -63,6 +85,37 @@ go run . \
 
 Always commit `proto/` and `crds/` together. Apply updated CRDs to the cluster before deploying a new operator version.
 
+### Regenerate control-plane DeepCopy methods
+Run this after modifying any type in `control-plane/api/`:
+```bash
+cd control-plane
+controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+```
+
+### Run the operator locally
+```bash
+cd control-plane
+go run ./cmd/main.go \
+  --xds-bind-address=:18000 \
+  --health-probe-bind-address=:8081
+```
+
+### Build & push the operator image
+```bash
+cd control-plane
+make docker-build docker-push IMG=<registry>/envoy-mesh-control-plane:<tag>
+```
+
+### Deploy to cluster
+```bash
+# Apply CRDs first (always before a new operator version)
+kubectl apply -f crds/
+
+# Deploy the operator
+cd control-plane
+make deploy IMG=<registry>/envoy-mesh-control-plane:<tag>
+```
+
 ## Rules
 
 - `crds/` xDS CRDs are fully generated — always edit `proto/` and re-run `crd-gen`.
@@ -70,13 +123,18 @@ Always commit `proto/` and `crds/` together. Apply updated CRDs to the cluster b
 - Every xDS resource CR must have a `targetRef` pointing to an existing `EnvoyProxy`.
 - CRDs must be applied to the cluster before deploying a new operator version.
 - `Bootstrap` must never become a CRD.
+- After modifying `control-plane/api/` types, always re-run `controller-gen` to regenerate `zz_generated.deepcopy.go`.
+- The control-plane Go module is `github.com/iglin/envoy-mesh/control-plane` (separate from any root module). Run `go` commands from inside `control-plane/`.
+- Do not add a `Status` subresource or status fields to xDS resource CRs (Listener, Cluster, etc.) — status lives only on `EnvoyProxy`.
 
 ## Key libraries
 
 | Layer | Library |
 |-------|---------|
-| Operator scaffolding | [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) |
-| Operator runtime | [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime) |
-| xDS server | [go-control-plane](https://github.com/envoyproxy/go-control-plane) |
+| Operator scaffolding | [kubebuilder v4](https://github.com/kubernetes-sigs/kubebuilder) |
+| Operator runtime | [controller-runtime v0.23](https://github.com/kubernetes-sigs/controller-runtime) |
+| xDS server + cache | [go-control-plane v0.13](https://github.com/envoyproxy/go-control-plane) |
+| Envoy API proto types | [go-control-plane/envoy](https://github.com/envoyproxy/go-control-plane/tree/main/envoy) |
+| Proto → JSON unmarshalling | [google.golang.org/protobuf/encoding/protojson](https://pkg.go.dev/google.golang.org/protobuf/encoding/protojson) |
 | Proto parser (crd-gen) | [emicklei/proto](https://github.com/emicklei/proto) |
 | Proto source | [envoyproxy/envoy API](https://github.com/envoyproxy/envoy/tree/main/api) |
