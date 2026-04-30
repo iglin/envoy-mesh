@@ -1,0 +1,9 @@
+apiVersion: mesh.mesh.envoy.io/v1alpha1
+kind: Listener
+metadata:
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/managed-by: kustomize
+  name: listener-sample
+spec:
+  # TODO(user): Add fields here

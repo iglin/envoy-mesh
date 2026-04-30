@@ -1,0 +1,9 @@
+## Append samples of your project ##
+resources:
+- mesh_v1alpha1_envoyproxy.yaml
+- mesh_v1alpha1_listener.yaml
+- mesh_v1alpha1_cluster.yaml
+- mesh_v1alpha1_routeconfiguration.yaml
+- mesh_v1alpha1_scopedrouteconfiguration.yaml
+- mesh_v1alpha1_clusterloadassignment.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

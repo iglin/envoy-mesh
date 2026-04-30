@@ -1,0 +1,76 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: envoyproxies.mesh.envoy.io
+spec:
+  group: mesh.envoy.io
+  names:
+    kind: EnvoyProxy
+    listKind: EnvoyProxyList
+    plural: envoyproxies
+    singular: envoyproxy
+    shortNames:
+      - ep
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Connected
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Connected")].status
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              description: >
+                EnvoyProxy spec is intentionally empty. The control-plane derives
+                all xDS node identifiers from the CR metadata:
+                  node.id      = {metadata.name}.{metadata.namespace}
+                  node.cluster = {metadata.name}.{metadata.namespace}
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                  format: int64
+                  description: Generation of the CR last processed by the control-plane.
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      type:
+                        type: string
+                        description: >
+                          Condition type. Known values:
+                            Connected — Envoy is actively streaming xDS from the control-plane.
+                            Ready     — at least one xDS snapshot has been successfully pushed.
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                        format: int64
