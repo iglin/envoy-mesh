@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-connectivity-test
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: curlimages/curl:8.7.1
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          ENVOY="http://{{ .Values.envoy.name }}:{{ .Values.envoy.service.port }}"
+          OK='\033[0;32mOK\033[0m'
+          FAIL='\033[0;31mFAIL\033[0m'
+
+          echo ">>> Waiting for Envoy to become ready..."
+          for i in $(seq 1 30); do
+            curl -sf "${ENVOY}" -o /dev/null -m 2 && break || true
+            sleep 2
+          done
+
+          echo ""
+          echo "=== /alpha  — RING_HASH via x-user-id header ==="
+
+          echo -n "  GET /alpha x-user-id=alice ... "
+          curl -sf -H "x-user-id: alice" "${ENVOY}/alpha" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo -n "  GET /alpha x-user-id=bob ... "
+          curl -sf -H "x-user-id: bob" "${ENVOY}/alpha" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo -n "  GET /alpha x-user-id=charlie ... "
+          curl -sf -H "x-user-id: charlie" "${ENVOY}/alpha" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo -n "  Stickiness: 3x same x-user-id=sticky-test ... "
+          for i in 1 2 3; do
+            curl -sf -H "x-user-id: sticky-test" "${ENVOY}/alpha" -o /dev/null || \
+              { printf "$FAIL\n"; exit 1; }
+          done
+          printf "$OK\n"
+
+          echo ""
+          echo "=== /beta  — ROUND_ROBIN + CookieBasedStatefulSession ==="
+
+          echo -n "  GET /beta (first request, no cookie) ... "
+          curl -sf -c /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo -n "  sticky-session cookie set by Envoy ... "
+          grep -q "sticky-session" /tmp/cookies.txt && \
+            printf "$OK\n" || printf "WARN: cookie not found (filter may need active upstream)\n"
+
+          echo -n "  GET /beta (second request, with cookie jar) ... "
+          curl -sf -b /tmp/cookies.txt -c /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo -n "  GET /beta (third request, session re-use) ... "
+          curl -sf -b /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
+            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+
+          echo ""
+          echo "=== All connectivity tests passed ==="

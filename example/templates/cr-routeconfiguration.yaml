@@ -1,0 +1,44 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: RouteConfiguration
+metadata:
+  name: main-routes
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+targetRef:
+  name: {{ .Values.envoy.name }}
+spec:
+  # Envoy RouteConfiguration proto — field names must match the CRD schema
+  # (snake_case / proto field names).  protojson.Unmarshal accepts both
+  # snake_case and camelCase; the CRD OpenAPI schema only accepts snake_case.
+  name: main-routes
+  virtual_hosts:
+    - name: local
+      domains:
+        - "*"
+      routes:
+        # ------------------------------------------------------------------ #
+        # /alpha  — RING_HASH load balancing keyed on the x-user-id header.
+        # stateful_session is explicitly disabled for this route.
+        # ------------------------------------------------------------------ #
+        - match:
+            prefix: /alpha
+          route:
+            cluster: svc-alpha
+            hash_policy:
+              - header:
+                  header_name: x-user-id
+                terminal: true
+          typed_per_filter_config:
+            envoy.filters.http.stateful_session:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute
+              disabled: true
+
+        # ------------------------------------------------------------------ #
+        # /beta  — ROUND_ROBIN + CookieBasedStatefulSession.
+        # Inherits the listener-level stateful_session filter config.
+        # ------------------------------------------------------------------ #
+        - match:
+            prefix: /beta
+          route:
+            cluster: svc-beta

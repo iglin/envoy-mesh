@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appBeta.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+    {{- include "example.betaLabels" . | nindent 4 }}
+spec:
+  # Normal ClusterIP — single stable virtual IP.  Cookie-based session
+  # stickiness is enforced by the Envoy stateful_session HTTP filter, not
+  # by Kubernetes service routing.
+  selector:
+    {{- include "example.betaLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.appBeta.port }}
+      targetPort: http
+      protocol: TCP

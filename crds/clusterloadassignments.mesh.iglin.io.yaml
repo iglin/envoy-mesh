@@ -60,8 +60,127 @@ spec:
                                   of the addresses. This will only be supported  for
                                   STATIC and EDS clusters.
                                 items:
+                                  properties:
+                                    address:
+                                      description: Additional address that is associated
+                                        with the endpoint.
+                                      properties:
+                                        envoy_internal_address:
+                                          description: Specifies a user-space address
+                                            handled by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                          properties:
+                                            endpoint_id:
+                                              description: Specifies an endpoint identifier
+                                                to distinguish between multiple endpoints
+                                                for the same internal listener in
+                                                a  single upstream pool. Only used
+                                                in the upstream addresses for tracking
+                                                changes to individual endpoints. This,
+                                                for  example, may be set to the final
+                                                destination IP for the target internal
+                                                listener.
+                                              type: string
+                                            server_listener_name:
+                                              description: Specifies the :ref:`name
+                                                <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                                of the  internal listener.
+                                              type: string
+                                          type: object
+                                        pipe:
+                                          properties:
+                                            mode:
+                                              description: The mode for the Pipe.
+                                                Not applicable for abstract sockets.
+                                              format: int32
+                                              type: integer
+                                            path:
+                                              description: Unix Domain Socket path.
+                                                On Linux, paths starting with '@'
+                                                will use the  abstract namespace.
+                                                The starting '@' is replaced by a
+                                                null byte by Envoy.  Paths starting
+                                                with '@' will result in an error in
+                                                environments other than  Linux.
+                                              type: string
+                                          type: object
+                                        socket_address:
+                                          description: '[#next-free-field: 8]'
+                                          properties:
+                                            address:
+                                              description: 'The address for this socket.
+                                                :ref:`Listeners <config_listeners>`
+                                                will bind  to the address. An empty
+                                                address is not allowed. Specify ``0.0.0.0``
+                                                or ``::``  to bind to any address.
+                                                [#comment:TODO(zuercher) reinstate
+                                                when implemented:  It is possible
+                                                to distinguish a Listener address
+                                                via the prefix/suffix matching  in
+                                                :ref:`FilterChainMatch <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                                When used  within an upstream :ref:`BindConfig
+                                                <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                                the address  controls the source address
+                                                of outbound connections. For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                                the cluster type determines whether
+                                                the  address must be an IP (``STATIC``
+                                                or ``EDS`` clusters) or a hostname
+                                                resolved by DNS  (``STRICT_DNS`` or
+                                                ``LOGICAL_DNS`` clusters). Address
+                                                resolution can be customized  via
+                                                :ref:`resolver_name <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                              type: string
+                                            ipv4_compat:
+                                              description: When binding to an IPv6
+                                                address above, this enables `IPv4
+                                                compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                                Binding to ``::`` will  allow both
+                                                IPv4 and IPv6 connections, with peer
+                                                IPv4 addresses mapped into  IPv6 space
+                                                as ``::FFFF:<IPv4-address>``.
+                                              type: boolean
+                                            named_port:
+                                              description: This is only valid if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                                is specified below and the  named
+                                                resolver is capable of named port
+                                                resolution.
+                                              type: string
+                                            network_namespace_filepath:
+                                              description: 'Filepath that specifies
+                                                the Linux network namespace this socket
+                                                will be created in (see ``man 7  network_namespaces``).
+                                                If this field is set, Envoy will create
+                                                the socket in the specified  network
+                                                namespace.   .. note::     Setting
+                                                this parameter requires Envoy to run
+                                                with the ``CAP_NET_ADMIN`` capability.   ..
+                                                attention::      Network namespaces
+                                                are only configurable on Linux. Otherwise,
+                                                this field has no effect.'
+                                              type: string
+                                            port_value:
+                                              format: int32
+                                              type: integer
+                                            protocol:
+                                              enum:
+                                              - TCP
+                                              - UDP
+                                              type: string
+                                            resolver_name:
+                                              description: The name of the custom
+                                                resolver. This must have been registered
+                                                with Envoy. If  this is empty, a context
+                                                dependent default applies. If the
+                                                address is a concrete  IP address,
+                                                no resolution will occur. If address
+                                                is a hostname this  should be set
+                                                for resolution other than DNS. Specifying
+                                                a custom resolver with  ``STRICT_DNS``
+                                                or ``LOGICAL_DNS`` will generate an
+                                                error at runtime.
+                                              type: string
+                                          type: object
+                                      type: object
                                   type: object
-                                  x-kubernetes-preserve-unknown-fields: true
                                 type: array
                               address:
                                 description: 'The upstream host address.   .. attention::     The
@@ -159,8 +278,10 @@ spec:
                                         format: int32
                                         type: integer
                                       protocol:
-                                        type: object
-                                        x-kubernetes-preserve-unknown-fields: true
+                                        enum:
+                                        - TCP
+                                        - UDP
+                                        type: string
                                       resolver_name:
                                         description: The name of the custom resolver.
                                           This must have been registered with Envoy.
@@ -181,8 +302,147 @@ spec:
                                   takes into effect only for upstream clusters with    :ref:`active
                                   health checking <arch_overview_health_checking>`
                                   enabled.'
+                                properties:
+                                  address:
+                                    description: 'Optional alternative health check
+                                      host address.   .. attention::     The form
+                                      of the health check host address is expected
+                                      to be a direct IP address.'
+                                    properties:
+                                      envoy_internal_address:
+                                        description: Specifies a user-space address
+                                          handled by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                        properties:
+                                          endpoint_id:
+                                            description: Specifies an endpoint identifier
+                                              to distinguish between multiple endpoints
+                                              for the same internal listener in a  single
+                                              upstream pool. Only used in the upstream
+                                              addresses for tracking changes to individual
+                                              endpoints. This, for  example, may be
+                                              set to the final destination IP for
+                                              the target internal listener.
+                                            type: string
+                                          server_listener_name:
+                                            description: Specifies the :ref:`name
+                                              <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                              of the  internal listener.
+                                            type: string
+                                        type: object
+                                      pipe:
+                                        properties:
+                                          mode:
+                                            description: The mode for the Pipe. Not
+                                              applicable for abstract sockets.
+                                            format: int32
+                                            type: integer
+                                          path:
+                                            description: Unix Domain Socket path.
+                                              On Linux, paths starting with '@' will
+                                              use the  abstract namespace. The starting
+                                              '@' is replaced by a null byte by Envoy.  Paths
+                                              starting with '@' will result in an
+                                              error in environments other than  Linux.
+                                            type: string
+                                        type: object
+                                      socket_address:
+                                        description: '[#next-free-field: 8]'
+                                        properties:
+                                          address:
+                                            description: 'The address for this socket.
+                                              :ref:`Listeners <config_listeners>`
+                                              will bind  to the address. An empty
+                                              address is not allowed. Specify ``0.0.0.0``
+                                              or ``::``  to bind to any address. [#comment:TODO(zuercher)
+                                              reinstate when implemented:  It is possible
+                                              to distinguish a Listener address via
+                                              the prefix/suffix matching  in :ref:`FilterChainMatch
+                                              <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                              When used  within an upstream :ref:`BindConfig
+                                              <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                              the address  controls the source address
+                                              of outbound connections. For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                              the cluster type determines whether
+                                              the  address must be an IP (``STATIC``
+                                              or ``EDS`` clusters) or a hostname resolved
+                                              by DNS  (``STRICT_DNS`` or ``LOGICAL_DNS``
+                                              clusters). Address resolution can be
+                                              customized  via :ref:`resolver_name
+                                              <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                            type: string
+                                          ipv4_compat:
+                                            description: When binding to an IPv6 address
+                                              above, this enables `IPv4 compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                              Binding to ``::`` will  allow both IPv4
+                                              and IPv6 connections, with peer IPv4
+                                              addresses mapped into  IPv6 space as
+                                              ``::FFFF:<IPv4-address>``.
+                                            type: boolean
+                                          named_port:
+                                            description: This is only valid if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                              is specified below and the  named resolver
+                                              is capable of named port resolution.
+                                            type: string
+                                          network_namespace_filepath:
+                                            description: 'Filepath that specifies
+                                              the Linux network namespace this socket
+                                              will be created in (see ``man 7  network_namespaces``).
+                                              If this field is set, Envoy will create
+                                              the socket in the specified  network
+                                              namespace.   .. note::     Setting this
+                                              parameter requires Envoy to run with
+                                              the ``CAP_NET_ADMIN`` capability.   ..
+                                              attention::      Network namespaces
+                                              are only configurable on Linux. Otherwise,
+                                              this field has no effect.'
+                                            type: string
+                                          port_value:
+                                            format: int32
+                                            type: integer
+                                          protocol:
+                                            enum:
+                                            - TCP
+                                            - UDP
+                                            type: string
+                                          resolver_name:
+                                            description: The name of the custom resolver.
+                                              This must have been registered with
+                                              Envoy. If  this is empty, a context
+                                              dependent default applies. If the address
+                                              is a concrete  IP address, no resolution
+                                              will occur. If address is a hostname
+                                              this  should be set for resolution other
+                                              than DNS. Specifying a custom resolver
+                                              with  ``STRICT_DNS`` or ``LOGICAL_DNS``
+                                              will generate an error at runtime.
+                                            type: string
+                                        type: object
+                                    type: object
+                                  disable_active_health_check:
+                                    description: Optional flag to control if perform
+                                      active health check for this endpoint.  Active
+                                      health check is enabled by default if there
+                                      is a health checker.
+                                    type: boolean
+                                  hostname:
+                                    description: 'By default, the host header for
+                                      L7 health checks is controlled by cluster level
+                                      configuration  (see: :ref:`host <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.host>`
+                                      and  :ref:`authority <envoy_v3_api_field_config.core.v3.HealthCheck.GrpcHealthCheck.authority>`).
+                                      Setting this  to a non-empty value allows overriding
+                                      the cluster level configuration for a specific  endpoint.'
+                                    type: string
+                                  port_value:
+                                    description: Optional alternative health check
+                                      port value.   By default the health check address
+                                      port of an upstream host is the same  as the
+                                      host's serving address port. This provides an
+                                      alternative health  check port. Setting this
+                                      with a non-zero value allows an upstream host  to
+                                      have different health check address port.
+                                    format: int32
+                                    type: integer
                                 type: object
-                                x-kubernetes-preserve-unknown-fields: true
                               hostname:
                                 description: The hostname associated with this endpoint.
                                   This hostname is not used for routing or address  resolution.
@@ -232,19 +492,8 @@ spec:
                             properties:
                               filter_metadata:
                                 additionalProperties:
-                                  description: 'Specify a format with command operators
-                                    to form a JSON string.  Its details is described
-                                    in :ref:`format dictionary<config_access_log_format_dictionaries>`.  Values
-                                    are rendered as strings, numbers, or boolean values
-                                    as appropriate.  Nested JSON objects may be produced
-                                    by some command operators (e.g. FILTER_STATE or
-                                    DYNAMIC_METADATA).  See the documentation for
-                                    a specific command operator for details.   ..
-                                    validated-code-block:: yaml    :type-name: envoy.config.core.v3.SubstitutionFormatString     json_format:      status:
-                                    "%RESPONSE_CODE%"      message: "%LOCAL_REPLY_BODY%"   The
-                                    following JSON object would be created:   .. code-block::
-                                    json    {     "status": 500,     "message": "My
-                                    error message"   }'
+                                  description: Additional configuration for site-specific
+                                    customizations of the Google  gRPC library.
                                   type: object
                                   x-kubernetes-preserve-unknown-fields: true
                                 type: object
@@ -292,8 +541,14 @@ spec:
                               properties:
                                 api_type:
                                   description: API type (gRPC, REST, delta gRPC)
-                                  type: object
-                                  x-kubernetes-preserve-unknown-fields: true
+                                  enum:
+                                  - DEPRECATED_AND_UNAVAILABLE_DO_NOT_USE
+                                  - REST
+                                  - GRPC
+                                  - DELTA_GRPC
+                                  - AGGREGATED_GRPC
+                                  - AGGREGATED_DELTA_GRPC
+                                  type: string
                                 cluster_names:
                                   description: 'Cluster names should be used only
                                     with REST. If > 1  cluster is defined, clusters
@@ -354,14 +609,531 @@ spec:
                                         description: Envoy's in-built gRPC client.  See
                                           the :ref:`gRPC services overview <arch_overview_grpc_services>`  documentation
                                           for discussion on gRPC client selection.
+                                        properties:
+                                          authority:
+                                            description: The ``:authority`` header
+                                              in the grpc request. If this field is
+                                              not set, the authority header value
+                                              will be ``cluster_name``.  Note that
+                                              this authority does not override the
+                                              SNI. The SNI is provided by the transport
+                                              socket of the cluster.
+                                            type: string
+                                          cluster_name:
+                                            description: The name of the upstream
+                                              gRPC cluster. SSL credentials will be
+                                              supplied  in the :ref:`Cluster <envoy_v3_api_msg_config.cluster.v3.Cluster>`
+                                              :ref:`transport_socket  <envoy_v3_api_field_config.cluster.v3.Cluster.transport_socket>`.
+                                            type: string
+                                          max_receive_message_length:
+                                            description: Maximum gRPC message size
+                                              that is allowed to be received.  If
+                                              a message over this limit is received,
+                                              the gRPC stream is terminated with the
+                                              RESOURCE_EXHAUSTED error.  This limit
+                                              is applied to individual messages in
+                                              the streaming response and not the total
+                                              size of streaming response.  Defaults
+                                              to 0, which means unlimited.
+                                            format: int32
+                                            type: integer
+                                          retry_policy:
+                                            description: 'Specifies the retry backoff
+                                              policy for re-establishing long‑lived
+                                              xDS gRPC streams.   This field is optional.
+                                              If ``retry_back_off.max_interval`` is
+                                              not provided, it will be set to  ten
+                                              times the configured ``retry_back_off.base_interval``.   ..
+                                              note::     This field is only honored
+                                              for management‑plane xDS gRPC streams
+                                              created from    :ref:`ApiConfigSource
+                                              <envoy_v3_api_msg_config.core.v3.ApiConfigSource>`
+                                              that use    ``envoy_grpc``. Data‑plane
+                                              gRPC clients (for example external authorization
+                                              or external    processing filters) must
+                                              use :ref:`GrpcService.retry_policy    <envoy_v3_api_field_config.core.v3.GrpcService.retry_policy>`
+                                              instead.   If not set, xDS gRPC streams
+                                              default to a base interval of 500ms
+                                              and a maximum interval of 30s.'
+                                            properties:
+                                              host_selection_retry_max_attempts:
+                                                description: For details, see :ref:`host_selection_retry_max_attempts
+                                                  <envoy_v3_api_field_config.route.v3.RetryPolicy.host_selection_retry_max_attempts>`.
+                                                format: int64
+                                                type: integer
+                                              num_retries:
+                                                description: Specifies the allowed
+                                                  number of retries. This parameter
+                                                  is optional and  defaults to 1.
+                                                format: int32
+                                                type: integer
+                                              retry_back_off:
+                                                description: Specifies parameters
+                                                  that control :ref:`retry backoff
+                                                  strategy <envoy_v3_api_msg_config.core.v3.BackoffStrategy>`.  This
+                                                  parameter is optional, in which
+                                                  case the default base interval is
+                                                  1000 milliseconds. The  default
+                                                  maximum interval is 10 times the
+                                                  base interval.
+                                                properties:
+                                                  base_interval:
+                                                    description: The base interval
+                                                      to be used for the next back
+                                                      off computation. It should  be
+                                                      greater than zero and less than
+                                                      or equal to :ref:`max_interval  <envoy_v3_api_field_config.core.v3.BackoffStrategy.max_interval>`.
+                                                    type: string
+                                                  max_interval:
+                                                    description: Specifies the maximum
+                                                      interval between retries. This
+                                                      parameter is optional,  but
+                                                      must be greater than or equal
+                                                      to the :ref:`base_interval  <envoy_v3_api_field_config.core.v3.BackoffStrategy.base_interval>`
+                                                      if set. The default  is 10 times
+                                                      the :ref:`base_interval  <envoy_v3_api_field_config.core.v3.BackoffStrategy.base_interval>`.
+                                                    type: string
+                                                type: object
+                                              retry_host_predicate:
+                                                description: For details, see :ref:`RetryHostPredicate
+                                                  <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_host_predicate>`.
+                                                items:
+                                                  description: See :ref:`RetryHostPredicate
+                                                    <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_host_predicate>`.
+                                                  properties:
+                                                    name:
+                                                      type: string
+                                                    typed_config:
+                                                      description: The typed config
+                                                        for the extension. The type
+                                                        URL will be used to identify  the
+                                                        extension. In the case that
+                                                        the type URL is ``xds.type.v3.TypedStruct``  (or,
+                                                        for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                        the inner type  URL of ``TypedStruct``
+                                                        will be utilized. See the  :ref:`extension
+                                                        configuration overview  <config_overview_extension_configuration>`
+                                                        for further details.
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
+                                                  type: object
+                                                type: array
+                                              retry_on:
+                                                description: For details, see :ref:`retry_on
+                                                  <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_on>`.
+                                                type: string
+                                              retry_priority:
+                                                description: For details, see :ref:`retry_priority
+                                                  <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_priority>`.
+                                                properties:
+                                                  name:
+                                                    type: string
+                                                  typed_config:
+                                                    description: The typed config
+                                                      for the extension. The type
+                                                      URL will be used to identify  the
+                                                      extension. In the case that
+                                                      the type URL is ``xds.type.v3.TypedStruct``  (or,
+                                                      for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                      the inner type  URL of ``TypedStruct``
+                                                      will be utilized. See the  :ref:`extension
+                                                      configuration overview  <config_overview_extension_configuration>`
+                                                      for further details.
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
+                                                type: object
+                                            type: object
+                                          skip_envoy_headers:
+                                            description: This provides gRPC client
+                                              level control over envoy generated headers.  If
+                                              false, the header will be sent but it
+                                              can be overridden by per stream option.  If
+                                              true, the header will be removed and
+                                              can not be overridden by per stream
+                                              option.  Default to false.
+                                            type: boolean
                                         type: object
-                                        x-kubernetes-preserve-unknown-fields: true
                                       google_grpc:
                                         description: '`Google C++ gRPC client <https://github.com/grpc/grpc>`_  See
                                           the :ref:`gRPC services overview <arch_overview_grpc_services>`  documentation
                                           for discussion on gRPC client selection.'
+                                        properties:
+                                          call_credentials:
+                                            description: The call credentials to use.
+                                              See `channel credentials  <https://grpc.io/docs/guides/auth.html#credential-types>`_.  Ignored
+                                              if ``call_credentials_plugin`` is set.
+                                            items:
+                                              description: '[#next-free-field: 8]'
+                                              properties:
+                                                access_token:
+                                                  description: Access token credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#ad3a80da696ffdaea943f0f858d7a360d.
+                                                  type: string
+                                                from_plugin:
+                                                  description: Custom authenticator
+                                                    credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#a823c6a4b19ffc71fb33e90154ee2ad07.  https://grpc.io/docs/guides/auth.html#extending-grpc-to-support-other-authentication-mechanisms.
+                                                  properties:
+                                                    name:
+                                                      type: string
+                                                    typed_config:
+                                                      description: The typed config
+                                                        for the extension. The type
+                                                        URL will be used to identify  the
+                                                        extension. In the case that
+                                                        the type URL is ``xds.type.v3.TypedStruct``  (or,
+                                                        for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                        the inner type  URL of ``TypedStruct``
+                                                        will be utilized. See the  :ref:`extension
+                                                        configuration overview  <config_overview_extension_configuration>`
+                                                        for further details.
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
+                                                  type: object
+                                                google_compute_engine:
+                                                  description: Google Compute Engine
+                                                    credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#a6beb3ac70ff94bd2ebbd89b8f21d1f61
+                                                  type: object
+                                                google_iam:
+                                                  description: Google IAM credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#a9fc1fc101b41e680d47028166e76f9d0.
+                                                  properties:
+                                                    authority_selector:
+                                                      type: string
+                                                    authorization_token:
+                                                      type: string
+                                                  type: object
+                                                google_refresh_token:
+                                                  description: Google refresh token
+                                                    credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#a96901c997b91bc6513b08491e0dca37c.
+                                                  type: string
+                                                service_account_jwt_access:
+                                                  description: Service Account JWT
+                                                    Access credentials.  https://grpc.io/grpc/cpp/namespacegrpc.html#a92a9f959d6102461f66ee973d8e9d3aa.
+                                                  properties:
+                                                    json_key:
+                                                      type: string
+                                                    token_lifetime_seconds:
+                                                      format: int64
+                                                      type: integer
+                                                  type: object
+                                                sts_service:
+                                                  description: Custom security token
+                                                    service which implements OAuth
+                                                    2.0 token exchange.  https://tools.ietf.org/html/draft-ietf-oauth-token-exchange-16  See
+                                                    https://github.com/grpc/grpc/pull/19587.
+                                                  properties:
+                                                    actor_token_path:
+                                                      description: The path of actor
+                                                        token, a security token that
+                                                        represents the identity  of
+                                                        the acting party. The acting
+                                                        party is authorized to use
+                                                        the  requested security token
+                                                        and act on behalf of the subject.
+                                                      type: string
+                                                    actor_token_type:
+                                                      description: Type of the actor
+                                                        token.
+                                                      type: string
+                                                    audience:
+                                                      description: Logical name of
+                                                        the target service where the
+                                                        client intends to  use the
+                                                        requested security token.
+                                                      type: string
+                                                    requested_token_type:
+                                                      description: Type of the requested
+                                                        security token.
+                                                      type: string
+                                                    resource:
+                                                      description: Location of the
+                                                        target service or resource
+                                                        where the client  intends
+                                                        to use the requested security
+                                                        token.
+                                                      type: string
+                                                    scope:
+                                                      description: The desired scope
+                                                        of the requested security
+                                                        token in the  context of the
+                                                        service or resource where
+                                                        the token will be used.
+                                                      type: string
+                                                    subject_token_path:
+                                                      description: The path of subject
+                                                        token, a security token that
+                                                        represents the  identity of
+                                                        the party on behalf of whom
+                                                        the request is being made.
+                                                      type: string
+                                                    subject_token_type:
+                                                      description: Type of the subject
+                                                        token.
+                                                      type: string
+                                                    token_exchange_service_uri:
+                                                      description: 'URI of the token
+                                                        exchange service that handles
+                                                        token exchange requests.  [#comment:TODO(asraa):
+                                                        Add URI validation when implemented.
+                                                        Tracked by  https://github.com/bufbuild/protoc-gen-validate/issues/303]'
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
+                                          call_credentials_plugin:
+                                            description: A list of call credentials
+                                              plugins. All supported plugins will
+                                              be used.  Unsupported plugin types will
+                                              be ignored.  [#not-implemented-hide:]
+                                            items:
+                                              description: The typed config for the
+                                                extension. The type URL will be used
+                                                to identify  the extension. In the
+                                                case that the type URL is ``xds.type.v3.TypedStruct``  (or,
+                                                for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                the inner type  URL of ``TypedStruct``
+                                                will be utilized. See the  :ref:`extension
+                                                configuration overview  <config_overview_extension_configuration>`
+                                                for further details.
+                                              type: object
+                                              x-kubernetes-preserve-unknown-fields: true
+                                            type: array
+                                          channel_args:
+                                            description: Custom channels args.
+                                            properties:
+                                              args:
+                                                additionalProperties:
+                                                  properties:
+                                                    int_value:
+                                                      format: int64
+                                                      type: integer
+                                                    string_value:
+                                                      type: string
+                                                  type: object
+                                                type: object
+                                            type: object
+                                          channel_credentials:
+                                            description: The channel credentials to
+                                              use. See `channel credentials  <https://grpc.io/docs/guides/auth.html#credential-types>`_.  Ignored
+                                              if ``channel_credentials_plugin`` is
+                                              set.
+                                            properties:
+                                              google_default:
+                                                description: https://grpc.io/grpc/cpp/namespacegrpc.html#a6beb3ac70ff94bd2ebbd89b8f21d1f61
+                                                type: object
+                                              local_credentials:
+                                                description: Local channel credentials.
+                                                  Only UDS is supported for now.  See
+                                                  https://github.com/grpc/grpc/pull/15909.
+                                                type: object
+                                                x-kubernetes-preserve-unknown-fields: true
+                                              ssl_credentials:
+                                                description: See https://grpc.io/grpc/cpp/structgrpc_1_1_ssl_credentials_options.html.
+                                                properties:
+                                                  cert_chain:
+                                                    description: PEM encoded client
+                                                      certificate chain.
+                                                    properties:
+                                                      environment_variable:
+                                                        description: Environment variable
+                                                          data source.
+                                                        type: string
+                                                      filename:
+                                                        description: Local filesystem
+                                                          data source.
+                                                        type: string
+                                                      inline_bytes:
+                                                        description: Bytes inlined
+                                                          in the configuration.
+                                                        format: byte
+                                                        type: string
+                                                      inline_string:
+                                                        description: String inlined
+                                                          in the configuration.
+                                                        type: string
+                                                      watched_directory:
+                                                        description: 'Watched directory
+                                                          that is watched for file
+                                                          changes. If this is set
+                                                          explicitly, the file  specified
+                                                          in the ``filename`` field
+                                                          will be reloaded when relevant
+                                                          file move events occur.   ..
+                                                          note::    This field only
+                                                          makes sense when the ``filename``
+                                                          field is set.   .. note::    Envoy
+                                                          only updates when the file
+                                                          is replaced by a file move,
+                                                          and not when the file is    edited
+                                                          in place.   .. note::    Not
+                                                          all use cases of ``DataSource``
+                                                          support watching directories.
+                                                          It depends on the    specific
+                                                          usage of the ``DataSource``.
+                                                          See the documentation of
+                                                          the parent message for    details.'
+                                                        properties:
+                                                          path:
+                                                            description: Directory
+                                                              path to watch.
+                                                            type: string
+                                                        type: object
+                                                    type: object
+                                                  private_key:
+                                                    description: PEM encoded client
+                                                      private key.
+                                                    properties:
+                                                      environment_variable:
+                                                        description: Environment variable
+                                                          data source.
+                                                        type: string
+                                                      filename:
+                                                        description: Local filesystem
+                                                          data source.
+                                                        type: string
+                                                      inline_bytes:
+                                                        description: Bytes inlined
+                                                          in the configuration.
+                                                        format: byte
+                                                        type: string
+                                                      inline_string:
+                                                        description: String inlined
+                                                          in the configuration.
+                                                        type: string
+                                                      watched_directory:
+                                                        description: 'Watched directory
+                                                          that is watched for file
+                                                          changes. If this is set
+                                                          explicitly, the file  specified
+                                                          in the ``filename`` field
+                                                          will be reloaded when relevant
+                                                          file move events occur.   ..
+                                                          note::    This field only
+                                                          makes sense when the ``filename``
+                                                          field is set.   .. note::    Envoy
+                                                          only updates when the file
+                                                          is replaced by a file move,
+                                                          and not when the file is    edited
+                                                          in place.   .. note::    Not
+                                                          all use cases of ``DataSource``
+                                                          support watching directories.
+                                                          It depends on the    specific
+                                                          usage of the ``DataSource``.
+                                                          See the documentation of
+                                                          the parent message for    details.'
+                                                        properties:
+                                                          path:
+                                                            description: Directory
+                                                              path to watch.
+                                                            type: string
+                                                        type: object
+                                                    type: object
+                                                  root_certs:
+                                                    description: PEM encoded server
+                                                      root certificates.
+                                                    properties:
+                                                      environment_variable:
+                                                        description: Environment variable
+                                                          data source.
+                                                        type: string
+                                                      filename:
+                                                        description: Local filesystem
+                                                          data source.
+                                                        type: string
+                                                      inline_bytes:
+                                                        description: Bytes inlined
+                                                          in the configuration.
+                                                        format: byte
+                                                        type: string
+                                                      inline_string:
+                                                        description: String inlined
+                                                          in the configuration.
+                                                        type: string
+                                                      watched_directory:
+                                                        description: 'Watched directory
+                                                          that is watched for file
+                                                          changes. If this is set
+                                                          explicitly, the file  specified
+                                                          in the ``filename`` field
+                                                          will be reloaded when relevant
+                                                          file move events occur.   ..
+                                                          note::    This field only
+                                                          makes sense when the ``filename``
+                                                          field is set.   .. note::    Envoy
+                                                          only updates when the file
+                                                          is replaced by a file move,
+                                                          and not when the file is    edited
+                                                          in place.   .. note::    Not
+                                                          all use cases of ``DataSource``
+                                                          support watching directories.
+                                                          It depends on the    specific
+                                                          usage of the ``DataSource``.
+                                                          See the documentation of
+                                                          the parent message for    details.'
+                                                        properties:
+                                                          path:
+                                                            description: Directory
+                                                              path to watch.
+                                                            type: string
+                                                        type: object
+                                                    type: object
+                                                type: object
+                                            type: object
+                                          channel_credentials_plugin:
+                                            description: A list of channel credentials
+                                              plugins.  The data plane will iterate
+                                              over the list in order and stop at the
+                                              first credential type  that it supports.
+                                              This provides a mechanism for starting
+                                              to use new credential types that  are
+                                              not yet supported by all data planes.  [#not-implemented-hide:]
+                                            items:
+                                              description: The typed config for the
+                                                extension. The type URL will be used
+                                                to identify  the extension. In the
+                                                case that the type URL is ``xds.type.v3.TypedStruct``  (or,
+                                                for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                the inner type  URL of ``TypedStruct``
+                                                will be utilized. See the  :ref:`extension
+                                                configuration overview  <config_overview_extension_configuration>`
+                                                for further details.
+                                              type: object
+                                              x-kubernetes-preserve-unknown-fields: true
+                                            type: array
+                                          config:
+                                            description: Additional configuration
+                                              for site-specific customizations of
+                                              the Google  gRPC library.
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
+                                          credentials_factory_name:
+                                            description: The name of the Google gRPC
+                                              credentials factory to use. This must
+                                              have been registered with  Envoy. If
+                                              this is empty, a default credentials
+                                              factory will be used that sets up channel  credentials
+                                              based on other configuration parameters.
+                                            type: string
+                                          per_stream_buffer_limit_bytes:
+                                            description: How many bytes each stream
+                                              can buffer internally.  If not set an
+                                              implementation defined default is applied
+                                              (1MiB).
+                                            format: int32
+                                            type: integer
+                                          stat_prefix:
+                                            description: 'The human readable prefix
+                                              to use when emitting statistics for
+                                              the gRPC  service.   .. csv-table::     :header:
+                                              Name, Type, Description     :widths:
+                                              1, 1, 2      streams_total, Counter,
+                                              Total number of streams opened     streams_closed_<gRPC
+                                              status code>, Counter, Total streams
+                                              closed with <gRPC status code>'
+                                            type: string
+                                          target_uri:
+                                            description: The target URI when using
+                                              the `Google C++ gRPC client  <https://github.com/grpc/grpc>`_.
+                                            type: string
                                         type: object
-                                        x-kubernetes-preserve-unknown-fields: true
                                       initial_metadata:
                                         description: 'Additional metadata to include
                                           in streams initiated to the GrpcService.
@@ -453,8 +1225,25 @@ spec:
                                             description: For details, see :ref:`RetryHostPredicate
                                               <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_host_predicate>`.
                                             items:
+                                              description: See :ref:`RetryHostPredicate
+                                                <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_host_predicate>`.
+                                              properties:
+                                                name:
+                                                  type: string
+                                                typed_config:
+                                                  description: The typed config for
+                                                    the extension. The type URL will
+                                                    be used to identify  the extension.
+                                                    In the case that the type URL
+                                                    is ``xds.type.v3.TypedStruct``  (or,
+                                                    for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                    the inner type  URL of ``TypedStruct``
+                                                    will be utilized. See the  :ref:`extension
+                                                    configuration overview  <config_overview_extension_configuration>`
+                                                    for further details.
+                                                  type: object
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
-                                              x-kubernetes-preserve-unknown-fields: true
                                             type: array
                                           retry_on:
                                             description: For details, see :ref:`retry_on
@@ -463,8 +1252,23 @@ spec:
                                           retry_priority:
                                             description: For details, see :ref:`retry_priority
                                               <envoy_v3_api_field_config.route.v3.RetryPolicy.retry_priority>`.
+                                            properties:
+                                              name:
+                                                type: string
+                                              typed_config:
+                                                description: The typed config for
+                                                  the extension. The type URL will
+                                                  be used to identify  the extension.
+                                                  In the case that the type URL is
+                                                  ``xds.type.v3.TypedStruct``  (or,
+                                                  for historical reasons, ``udpa.type.v1.TypedStruct``),
+                                                  the inner type  URL of ``TypedStruct``
+                                                  will be utilized. See the  :ref:`extension
+                                                  configuration overview  <config_overview_extension_configuration>`
+                                                  for further details.
+                                                type: object
+                                                x-kubernetes-preserve-unknown-fields: true
                                             type: object
-                                            x-kubernetes-preserve-unknown-fields: true
                                         type: object
                                       timeout:
                                         description: The timeout for the gRPC request.
@@ -630,8 +1434,509 @@ spec:
                     load_balancer_endpoints:
                       description: '[#not-implemented-hide:]  Not implemented and
                         deprecated.'
+                      properties:
+                        lb_endpoints:
+                          items:
+                            description: 'An Endpoint that Envoy can route traffic
+                              to.  [#next-free-field: 6]'
+                            properties:
+                              endpoint:
+                                description: Upstream host identifier.
+                                properties:
+                                  additional_addresses:
+                                    description: An ordered list of addresses that
+                                      together with ``address`` comprise the  list
+                                      of addresses for an endpoint. The address given
+                                      in the ``address`` is  prepended to this list.
+                                      It is assumed that the list must already be  sorted
+                                      by preference order of the addresses. This will
+                                      only be supported  for STATIC and EDS clusters.
+                                    items:
+                                      properties:
+                                        address:
+                                          description: Additional address that is
+                                            associated with the endpoint.
+                                          properties:
+                                            envoy_internal_address:
+                                              description: Specifies a user-space
+                                                address handled by :ref:`internal
+                                                listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                              properties:
+                                                endpoint_id:
+                                                  description: Specifies an endpoint
+                                                    identifier to distinguish between
+                                                    multiple endpoints for the same
+                                                    internal listener in a  single
+                                                    upstream pool. Only used in the
+                                                    upstream addresses for tracking
+                                                    changes to individual endpoints.
+                                                    This, for  example, may be set
+                                                    to the final destination IP for
+                                                    the target internal listener.
+                                                  type: string
+                                                server_listener_name:
+                                                  description: Specifies the :ref:`name
+                                                    <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                                    of the  internal listener.
+                                                  type: string
+                                              type: object
+                                            pipe:
+                                              properties:
+                                                mode:
+                                                  description: The mode for the Pipe.
+                                                    Not applicable for abstract sockets.
+                                                  format: int32
+                                                  type: integer
+                                                path:
+                                                  description: Unix Domain Socket
+                                                    path. On Linux, paths starting
+                                                    with '@' will use the  abstract
+                                                    namespace. The starting '@' is
+                                                    replaced by a null byte by Envoy.  Paths
+                                                    starting with '@' will result
+                                                    in an error in environments other
+                                                    than  Linux.
+                                                  type: string
+                                              type: object
+                                            socket_address:
+                                              description: '[#next-free-field: 8]'
+                                              properties:
+                                                address:
+                                                  description: 'The address for this
+                                                    socket. :ref:`Listeners <config_listeners>`
+                                                    will bind  to the address. An
+                                                    empty address is not allowed.
+                                                    Specify ``0.0.0.0`` or ``::``  to
+                                                    bind to any address. [#comment:TODO(zuercher)
+                                                    reinstate when implemented:  It
+                                                    is possible to distinguish a Listener
+                                                    address via the prefix/suffix
+                                                    matching  in :ref:`FilterChainMatch
+                                                    <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                                    When used  within an upstream
+                                                    :ref:`BindConfig <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                                    the address  controls the source
+                                                    address of outbound connections.
+                                                    For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                                    the cluster type determines whether
+                                                    the  address must be an IP (``STATIC``
+                                                    or ``EDS`` clusters) or a hostname
+                                                    resolved by DNS  (``STRICT_DNS``
+                                                    or ``LOGICAL_DNS`` clusters).
+                                                    Address resolution can be customized  via
+                                                    :ref:`resolver_name <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                                  type: string
+                                                ipv4_compat:
+                                                  description: When binding to an
+                                                    IPv6 address above, this enables
+                                                    `IPv4 compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                                    Binding to ``::`` will  allow
+                                                    both IPv4 and IPv6 connections,
+                                                    with peer IPv4 addresses mapped
+                                                    into  IPv6 space as ``::FFFF:<IPv4-address>``.
+                                                  type: boolean
+                                                named_port:
+                                                  description: This is only valid
+                                                    if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                                    is specified below and the  named
+                                                    resolver is capable of named port
+                                                    resolution.
+                                                  type: string
+                                                network_namespace_filepath:
+                                                  description: 'Filepath that specifies
+                                                    the Linux network namespace this
+                                                    socket will be created in (see
+                                                    ``man 7  network_namespaces``).
+                                                    If this field is set, Envoy will
+                                                    create the socket in the specified  network
+                                                    namespace.   .. note::     Setting
+                                                    this parameter requires Envoy
+                                                    to run with the ``CAP_NET_ADMIN``
+                                                    capability.   .. attention::      Network
+                                                    namespaces are only configurable
+                                                    on Linux. Otherwise, this field
+                                                    has no effect.'
+                                                  type: string
+                                                port_value:
+                                                  format: int32
+                                                  type: integer
+                                                protocol:
+                                                  enum:
+                                                  - TCP
+                                                  - UDP
+                                                  type: string
+                                                resolver_name:
+                                                  description: The name of the custom
+                                                    resolver. This must have been
+                                                    registered with Envoy. If  this
+                                                    is empty, a context dependent
+                                                    default applies. If the address
+                                                    is a concrete  IP address, no
+                                                    resolution will occur. If address
+                                                    is a hostname this  should be
+                                                    set for resolution other than
+                                                    DNS. Specifying a custom resolver
+                                                    with  ``STRICT_DNS`` or ``LOGICAL_DNS``
+                                                    will generate an error at runtime.
+                                                  type: string
+                                              type: object
+                                          type: object
+                                      type: object
+                                    type: array
+                                  address:
+                                    description: 'The upstream host address.   ..
+                                      attention::     The form of host address depends
+                                      on the given cluster type. For STATIC or EDS,    it
+                                      is expected to be a direct IP address (or something
+                                      resolvable by the    specified :ref:`resolver
+                                      <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`    in
+                                      the Address). For LOGICAL or STRICT DNS, it
+                                      is expected to be hostname,    and will be resolved
+                                      via DNS.'
+                                    properties:
+                                      envoy_internal_address:
+                                        description: Specifies a user-space address
+                                          handled by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                        properties:
+                                          endpoint_id:
+                                            description: Specifies an endpoint identifier
+                                              to distinguish between multiple endpoints
+                                              for the same internal listener in a  single
+                                              upstream pool. Only used in the upstream
+                                              addresses for tracking changes to individual
+                                              endpoints. This, for  example, may be
+                                              set to the final destination IP for
+                                              the target internal listener.
+                                            type: string
+                                          server_listener_name:
+                                            description: Specifies the :ref:`name
+                                              <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                              of the  internal listener.
+                                            type: string
+                                        type: object
+                                      pipe:
+                                        properties:
+                                          mode:
+                                            description: The mode for the Pipe. Not
+                                              applicable for abstract sockets.
+                                            format: int32
+                                            type: integer
+                                          path:
+                                            description: Unix Domain Socket path.
+                                              On Linux, paths starting with '@' will
+                                              use the  abstract namespace. The starting
+                                              '@' is replaced by a null byte by Envoy.  Paths
+                                              starting with '@' will result in an
+                                              error in environments other than  Linux.
+                                            type: string
+                                        type: object
+                                      socket_address:
+                                        description: '[#next-free-field: 8]'
+                                        properties:
+                                          address:
+                                            description: 'The address for this socket.
+                                              :ref:`Listeners <config_listeners>`
+                                              will bind  to the address. An empty
+                                              address is not allowed. Specify ``0.0.0.0``
+                                              or ``::``  to bind to any address. [#comment:TODO(zuercher)
+                                              reinstate when implemented:  It is possible
+                                              to distinguish a Listener address via
+                                              the prefix/suffix matching  in :ref:`FilterChainMatch
+                                              <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                              When used  within an upstream :ref:`BindConfig
+                                              <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                              the address  controls the source address
+                                              of outbound connections. For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                              the cluster type determines whether
+                                              the  address must be an IP (``STATIC``
+                                              or ``EDS`` clusters) or a hostname resolved
+                                              by DNS  (``STRICT_DNS`` or ``LOGICAL_DNS``
+                                              clusters). Address resolution can be
+                                              customized  via :ref:`resolver_name
+                                              <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                            type: string
+                                          ipv4_compat:
+                                            description: When binding to an IPv6 address
+                                              above, this enables `IPv4 compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                              Binding to ``::`` will  allow both IPv4
+                                              and IPv6 connections, with peer IPv4
+                                              addresses mapped into  IPv6 space as
+                                              ``::FFFF:<IPv4-address>``.
+                                            type: boolean
+                                          named_port:
+                                            description: This is only valid if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                              is specified below and the  named resolver
+                                              is capable of named port resolution.
+                                            type: string
+                                          network_namespace_filepath:
+                                            description: 'Filepath that specifies
+                                              the Linux network namespace this socket
+                                              will be created in (see ``man 7  network_namespaces``).
+                                              If this field is set, Envoy will create
+                                              the socket in the specified  network
+                                              namespace.   .. note::     Setting this
+                                              parameter requires Envoy to run with
+                                              the ``CAP_NET_ADMIN`` capability.   ..
+                                              attention::      Network namespaces
+                                              are only configurable on Linux. Otherwise,
+                                              this field has no effect.'
+                                            type: string
+                                          port_value:
+                                            format: int32
+                                            type: integer
+                                          protocol:
+                                            enum:
+                                            - TCP
+                                            - UDP
+                                            type: string
+                                          resolver_name:
+                                            description: The name of the custom resolver.
+                                              This must have been registered with
+                                              Envoy. If  this is empty, a context
+                                              dependent default applies. If the address
+                                              is a concrete  IP address, no resolution
+                                              will occur. If address is a hostname
+                                              this  should be set for resolution other
+                                              than DNS. Specifying a custom resolver
+                                              with  ``STRICT_DNS`` or ``LOGICAL_DNS``
+                                              will generate an error at runtime.
+                                            type: string
+                                        type: object
+                                    type: object
+                                  health_check_config:
+                                    description: 'The optional health check configuration
+                                      is used as configuration for the  health checker
+                                      to contact the health checked host.   .. attention::     This
+                                      takes into effect only for upstream clusters
+                                      with    :ref:`active health checking <arch_overview_health_checking>`
+                                      enabled.'
+                                    properties:
+                                      address:
+                                        description: 'Optional alternative health
+                                          check host address.   .. attention::     The
+                                          form of the health check host address is
+                                          expected to be a direct IP address.'
+                                        properties:
+                                          envoy_internal_address:
+                                            description: Specifies a user-space address
+                                              handled by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                            properties:
+                                              endpoint_id:
+                                                description: Specifies an endpoint
+                                                  identifier to distinguish between
+                                                  multiple endpoints for the same
+                                                  internal listener in a  single upstream
+                                                  pool. Only used in the upstream
+                                                  addresses for tracking changes to
+                                                  individual endpoints. This, for  example,
+                                                  may be set to the final destination
+                                                  IP for the target internal listener.
+                                                type: string
+                                              server_listener_name:
+                                                description: Specifies the :ref:`name
+                                                  <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                                  of the  internal listener.
+                                                type: string
+                                            type: object
+                                          pipe:
+                                            properties:
+                                              mode:
+                                                description: The mode for the Pipe.
+                                                  Not applicable for abstract sockets.
+                                                format: int32
+                                                type: integer
+                                              path:
+                                                description: Unix Domain Socket path.
+                                                  On Linux, paths starting with '@'
+                                                  will use the  abstract namespace.
+                                                  The starting '@' is replaced by
+                                                  a null byte by Envoy.  Paths starting
+                                                  with '@' will result in an error
+                                                  in environments other than  Linux.
+                                                type: string
+                                            type: object
+                                          socket_address:
+                                            description: '[#next-free-field: 8]'
+                                            properties:
+                                              address:
+                                                description: 'The address for this
+                                                  socket. :ref:`Listeners <config_listeners>`
+                                                  will bind  to the address. An empty
+                                                  address is not allowed. Specify
+                                                  ``0.0.0.0`` or ``::``  to bind to
+                                                  any address. [#comment:TODO(zuercher)
+                                                  reinstate when implemented:  It
+                                                  is possible to distinguish a Listener
+                                                  address via the prefix/suffix matching  in
+                                                  :ref:`FilterChainMatch <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                                  When used  within an upstream :ref:`BindConfig
+                                                  <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                                  the address  controls the source
+                                                  address of outbound connections.
+                                                  For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                                  the cluster type determines whether
+                                                  the  address must be an IP (``STATIC``
+                                                  or ``EDS`` clusters) or a hostname
+                                                  resolved by DNS  (``STRICT_DNS``
+                                                  or ``LOGICAL_DNS`` clusters). Address
+                                                  resolution can be customized  via
+                                                  :ref:`resolver_name <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                                type: string
+                                              ipv4_compat:
+                                                description: When binding to an IPv6
+                                                  address above, this enables `IPv4
+                                                  compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                                  Binding to ``::`` will  allow both
+                                                  IPv4 and IPv6 connections, with
+                                                  peer IPv4 addresses mapped into  IPv6
+                                                  space as ``::FFFF:<IPv4-address>``.
+                                                type: boolean
+                                              named_port:
+                                                description: This is only valid if
+                                                  :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                                  is specified below and the  named
+                                                  resolver is capable of named port
+                                                  resolution.
+                                                type: string
+                                              network_namespace_filepath:
+                                                description: 'Filepath that specifies
+                                                  the Linux network namespace this
+                                                  socket will be created in (see ``man
+                                                  7  network_namespaces``). If this
+                                                  field is set, Envoy will create
+                                                  the socket in the specified  network
+                                                  namespace.   .. note::     Setting
+                                                  this parameter requires Envoy to
+                                                  run with the ``CAP_NET_ADMIN`` capability.   ..
+                                                  attention::      Network namespaces
+                                                  are only configurable on Linux.
+                                                  Otherwise, this field has no effect.'
+                                                type: string
+                                              port_value:
+                                                format: int32
+                                                type: integer
+                                              protocol:
+                                                enum:
+                                                - TCP
+                                                - UDP
+                                                type: string
+                                              resolver_name:
+                                                description: The name of the custom
+                                                  resolver. This must have been registered
+                                                  with Envoy. If  this is empty, a
+                                                  context dependent default applies.
+                                                  If the address is a concrete  IP
+                                                  address, no resolution will occur.
+                                                  If address is a hostname this  should
+                                                  be set for resolution other than
+                                                  DNS. Specifying a custom resolver
+                                                  with  ``STRICT_DNS`` or ``LOGICAL_DNS``
+                                                  will generate an error at runtime.
+                                                type: string
+                                            type: object
+                                        type: object
+                                      disable_active_health_check:
+                                        description: Optional flag to control if perform
+                                          active health check for this endpoint.  Active
+                                          health check is enabled by default if there
+                                          is a health checker.
+                                        type: boolean
+                                      hostname:
+                                        description: 'By default, the host header
+                                          for L7 health checks is controlled by cluster
+                                          level configuration  (see: :ref:`host <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.host>`
+                                          and  :ref:`authority <envoy_v3_api_field_config.core.v3.HealthCheck.GrpcHealthCheck.authority>`).
+                                          Setting this  to a non-empty value allows
+                                          overriding the cluster level configuration
+                                          for a specific  endpoint.'
+                                        type: string
+                                      port_value:
+                                        description: Optional alternative health check
+                                          port value.   By default the health check
+                                          address port of an upstream host is the
+                                          same  as the host's serving address port.
+                                          This provides an alternative health  check
+                                          port. Setting this with a non-zero value
+                                          allows an upstream host  to have different
+                                          health check address port.
+                                        format: int32
+                                        type: integer
+                                    type: object
+                                  hostname:
+                                    description: The hostname associated with this
+                                      endpoint. This hostname is not used for routing
+                                      or address  resolution. If provided, it will
+                                      be associated with the endpoint, and can be
+                                      used for features  that require a hostname,
+                                      like  :ref:`auto_host_rewrite <envoy_v3_api_field_config.route.v3.RouteAction.auto_host_rewrite>`.
+                                    type: string
+                                type: object
+                              endpoint_name:
+                                description: '[#not-implemented-hide:]'
+                                type: string
+                              health_status:
+                                description: Optional health status when known and
+                                  supplied by EDS server.
+                                enum:
+                                - UNKNOWN
+                                - HEALTHY
+                                - UNHEALTHY
+                                - DRAINING
+                                - TIMEOUT
+                                - DEGRADED
+                                type: string
+                              load_balancing_weight:
+                                description: The optional load balancing weight of
+                                  the upstream host; at least 1.  Envoy uses the load
+                                  balancing weight in some of the built in load  balancers.
+                                  The load balancing weight for an endpoint is divided
+                                  by the sum  of the weights of all endpoints in the
+                                  endpoint's locality to produce a  percentage of
+                                  traffic for the endpoint. This percentage is then
+                                  further  weighted by the endpoint's locality's load
+                                  balancing weight from  LocalityLbEndpoints. If unspecified,
+                                  will be treated as 1. The sum  of the weights of
+                                  all endpoints in the endpoint's locality must not  exceed
+                                  uint32_t maximal value (4294967295).
+                                format: int32
+                                type: integer
+                              metadata:
+                                description: The endpoint metadata specifies values
+                                  that may be used by the load  balancer to select
+                                  endpoints in a cluster for a given request. The
+                                  filter  name should be specified as ``envoy.lb``.
+                                  An example boolean key-value pair  is ``canary``,
+                                  providing the optional canary status of the upstream
+                                  host.  This may be matched against in a route's  :ref:`RouteAction
+                                  <envoy_v3_api_msg_config.route.v3.RouteAction>`
+                                  metadata_match field  to subset the endpoints considered
+                                  in cluster load balancing.
+                                properties:
+                                  filter_metadata:
+                                    additionalProperties:
+                                      description: Additional configuration for site-specific
+                                        customizations of the Google  gRPC library.
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    type: object
+                                  typed_filter_metadata:
+                                    additionalProperties:
+                                      description: The typed config for the extension.
+                                        The type URL will be used to identify  the
+                                        extension. In the case that the type URL is
+                                        ``xds.type.v3.TypedStruct``  (or, for historical
+                                        reasons, ``udpa.type.v1.TypedStruct``), the
+                                        inner type  URL of ``TypedStruct`` will be
+                                        utilized. See the  :ref:`extension configuration
+                                        overview  <config_overview_extension_configuration>`
+                                        for further details.
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    type: object
+                                type: object
+                            type: object
+                          type: array
                       type: object
-                      x-kubernetes-preserve-unknown-fields: true
                     load_balancing_weight:
                       description: 'Optional: Per priority/region/zone/sub_zone weight;
                         at least 1. The load  balancing weight for a locality is divided
@@ -677,19 +1982,8 @@ spec:
                       properties:
                         filter_metadata:
                           additionalProperties:
-                            description: 'Specify a format with command operators
-                              to form a JSON string.  Its details is described in
-                              :ref:`format dictionary<config_access_log_format_dictionaries>`.  Values
-                              are rendered as strings, numbers, or boolean values
-                              as appropriate.  Nested JSON objects may be produced
-                              by some command operators (e.g. FILTER_STATE or DYNAMIC_METADATA).  See
-                              the documentation for a specific command operator for
-                              details.   .. validated-code-block:: yaml    :type-name:
-                              envoy.config.core.v3.SubstitutionFormatString     json_format:      status:
-                              "%RESPONSE_CODE%"      message: "%LOCAL_REPLY_BODY%"   The
-                              following JSON object would be created:   .. code-block::
-                              json    {     "status": 500,     "message": "My error
-                              message"   }'
+                            description: Additional configuration for site-specific
+                              customizations of the Google  gRPC library.
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                           type: object
@@ -740,8 +2034,111 @@ spec:
                         by preference order of the addresses. This will only be supported  for
                         STATIC and EDS clusters.
                       items:
+                        properties:
+                          address:
+                            description: Additional address that is associated with
+                              the endpoint.
+                            properties:
+                              envoy_internal_address:
+                                description: Specifies a user-space address handled
+                                  by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                                properties:
+                                  endpoint_id:
+                                    description: Specifies an endpoint identifier
+                                      to distinguish between multiple endpoints for
+                                      the same internal listener in a  single upstream
+                                      pool. Only used in the upstream addresses for
+                                      tracking changes to individual endpoints. This,
+                                      for  example, may be set to the final destination
+                                      IP for the target internal listener.
+                                    type: string
+                                  server_listener_name:
+                                    description: Specifies the :ref:`name <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                      of the  internal listener.
+                                    type: string
+                                type: object
+                              pipe:
+                                properties:
+                                  mode:
+                                    description: The mode for the Pipe. Not applicable
+                                      for abstract sockets.
+                                    format: int32
+                                    type: integer
+                                  path:
+                                    description: Unix Domain Socket path. On Linux,
+                                      paths starting with '@' will use the  abstract
+                                      namespace. The starting '@' is replaced by a
+                                      null byte by Envoy.  Paths starting with '@'
+                                      will result in an error in environments other
+                                      than  Linux.
+                                    type: string
+                                type: object
+                              socket_address:
+                                description: '[#next-free-field: 8]'
+                                properties:
+                                  address:
+                                    description: 'The address for this socket. :ref:`Listeners
+                                      <config_listeners>` will bind  to the address.
+                                      An empty address is not allowed. Specify ``0.0.0.0``
+                                      or ``::``  to bind to any address. [#comment:TODO(zuercher)
+                                      reinstate when implemented:  It is possible
+                                      to distinguish a Listener address via the prefix/suffix
+                                      matching  in :ref:`FilterChainMatch <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                      When used  within an upstream :ref:`BindConfig
+                                      <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                      the address  controls the source address of
+                                      outbound connections. For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                      the cluster type determines whether the  address
+                                      must be an IP (``STATIC`` or ``EDS`` clusters)
+                                      or a hostname resolved by DNS  (``STRICT_DNS``
+                                      or ``LOGICAL_DNS`` clusters). Address resolution
+                                      can be customized  via :ref:`resolver_name <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                    type: string
+                                  ipv4_compat:
+                                    description: When binding to an IPv6 address above,
+                                      this enables `IPv4 compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                      Binding to ``::`` will  allow both IPv4 and
+                                      IPv6 connections, with peer IPv4 addresses mapped
+                                      into  IPv6 space as ``::FFFF:<IPv4-address>``.
+                                    type: boolean
+                                  named_port:
+                                    description: This is only valid if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                      is specified below and the  named resolver is
+                                      capable of named port resolution.
+                                    type: string
+                                  network_namespace_filepath:
+                                    description: 'Filepath that specifies the Linux
+                                      network namespace this socket will be created
+                                      in (see ``man 7  network_namespaces``). If this
+                                      field is set, Envoy will create the socket in
+                                      the specified  network namespace.   .. note::     Setting
+                                      this parameter requires Envoy to run with the
+                                      ``CAP_NET_ADMIN`` capability.   .. attention::      Network
+                                      namespaces are only configurable on Linux. Otherwise,
+                                      this field has no effect.'
+                                    type: string
+                                  port_value:
+                                    format: int32
+                                    type: integer
+                                  protocol:
+                                    enum:
+                                    - TCP
+                                    - UDP
+                                    type: string
+                                  resolver_name:
+                                    description: The name of the custom resolver.
+                                      This must have been registered with Envoy. If  this
+                                      is empty, a context dependent default applies.
+                                      If the address is a concrete  IP address, no
+                                      resolution will occur. If address is a hostname
+                                      this  should be set for resolution other than
+                                      DNS. Specifying a custom resolver with  ``STRICT_DNS``
+                                      or ``LOGICAL_DNS`` will generate an error at
+                                      runtime.
+                                    type: string
+                                type: object
+                            type: object
                         type: object
-                        x-kubernetes-preserve-unknown-fields: true
                       type: array
                     address:
                       description: 'The upstream host address.   .. attention::     The
@@ -830,8 +2227,10 @@ spec:
                               format: int32
                               type: integer
                             protocol:
-                              type: object
-                              x-kubernetes-preserve-unknown-fields: true
+                              enum:
+                              - TCP
+                              - UDP
+                              type: string
                             resolver_name:
                               description: The name of the custom resolver. This must
                                 have been registered with Envoy. If  this is empty,
@@ -849,8 +2248,132 @@ spec:
                         checked host.   .. attention::     This takes into effect
                         only for upstream clusters with    :ref:`active health checking
                         <arch_overview_health_checking>` enabled.'
+                      properties:
+                        address:
+                          description: 'Optional alternative health check host address.   ..
+                            attention::     The form of the health check host address
+                            is expected to be a direct IP address.'
+                          properties:
+                            envoy_internal_address:
+                              description: Specifies a user-space address handled
+                                by :ref:`internal listeners  <envoy_v3_api_field_config.listener.v3.Listener.internal_listener>`.
+                              properties:
+                                endpoint_id:
+                                  description: Specifies an endpoint identifier to
+                                    distinguish between multiple endpoints for the
+                                    same internal listener in a  single upstream pool.
+                                    Only used in the upstream addresses for tracking
+                                    changes to individual endpoints. This, for  example,
+                                    may be set to the final destination IP for the
+                                    target internal listener.
+                                  type: string
+                                server_listener_name:
+                                  description: Specifies the :ref:`name <envoy_v3_api_field_config.listener.v3.Listener.name>`
+                                    of the  internal listener.
+                                  type: string
+                              type: object
+                            pipe:
+                              properties:
+                                mode:
+                                  description: The mode for the Pipe. Not applicable
+                                    for abstract sockets.
+                                  format: int32
+                                  type: integer
+                                path:
+                                  description: Unix Domain Socket path. On Linux,
+                                    paths starting with '@' will use the  abstract
+                                    namespace. The starting '@' is replaced by a null
+                                    byte by Envoy.  Paths starting with '@' will result
+                                    in an error in environments other than  Linux.
+                                  type: string
+                              type: object
+                            socket_address:
+                              description: '[#next-free-field: 8]'
+                              properties:
+                                address:
+                                  description: 'The address for this socket. :ref:`Listeners
+                                    <config_listeners>` will bind  to the address.
+                                    An empty address is not allowed. Specify ``0.0.0.0``
+                                    or ``::``  to bind to any address. [#comment:TODO(zuercher)
+                                    reinstate when implemented:  It is possible to
+                                    distinguish a Listener address via the prefix/suffix
+                                    matching  in :ref:`FilterChainMatch <envoy_v3_api_msg_config.listener.v3.FilterChainMatch>`.]
+                                    When used  within an upstream :ref:`BindConfig
+                                    <envoy_v3_api_msg_config.core.v3.BindConfig>`,
+                                    the address  controls the source address of outbound
+                                    connections. For :ref:`clusters  <envoy_v3_api_msg_config.cluster.v3.Cluster>`,
+                                    the cluster type determines whether the  address
+                                    must be an IP (``STATIC`` or ``EDS`` clusters)
+                                    or a hostname resolved by DNS  (``STRICT_DNS``
+                                    or ``LOGICAL_DNS`` clusters). Address resolution
+                                    can be customized  via :ref:`resolver_name <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`.'
+                                  type: string
+                                ipv4_compat:
+                                  description: When binding to an IPv6 address above,
+                                    this enables `IPv4 compatibility  <https://tools.ietf.org/html/rfc3493#page-11>`_.
+                                    Binding to ``::`` will  allow both IPv4 and IPv6
+                                    connections, with peer IPv4 addresses mapped into  IPv6
+                                    space as ``::FFFF:<IPv4-address>``.
+                                  type: boolean
+                                named_port:
+                                  description: This is only valid if :ref:`resolver_name  <envoy_v3_api_field_config.core.v3.SocketAddress.resolver_name>`
+                                    is specified below and the  named resolver is
+                                    capable of named port resolution.
+                                  type: string
+                                network_namespace_filepath:
+                                  description: 'Filepath that specifies the Linux
+                                    network namespace this socket will be created
+                                    in (see ``man 7  network_namespaces``). If this
+                                    field is set, Envoy will create the socket in
+                                    the specified  network namespace.   .. note::     Setting
+                                    this parameter requires Envoy to run with the
+                                    ``CAP_NET_ADMIN`` capability.   .. attention::      Network
+                                    namespaces are only configurable on Linux. Otherwise,
+                                    this field has no effect.'
+                                  type: string
+                                port_value:
+                                  format: int32
+                                  type: integer
+                                protocol:
+                                  enum:
+                                  - TCP
+                                  - UDP
+                                  type: string
+                                resolver_name:
+                                  description: The name of the custom resolver. This
+                                    must have been registered with Envoy. If  this
+                                    is empty, a context dependent default applies.
+                                    If the address is a concrete  IP address, no resolution
+                                    will occur. If address is a hostname this  should
+                                    be set for resolution other than DNS. Specifying
+                                    a custom resolver with  ``STRICT_DNS`` or ``LOGICAL_DNS``
+                                    will generate an error at runtime.
+                                  type: string
+                              type: object
+                          type: object
+                        disable_active_health_check:
+                          description: Optional flag to control if perform active
+                            health check for this endpoint.  Active health check is
+                            enabled by default if there is a health checker.
+                          type: boolean
+                        hostname:
+                          description: 'By default, the host header for L7 health
+                            checks is controlled by cluster level configuration  (see:
+                            :ref:`host <envoy_v3_api_field_config.core.v3.HealthCheck.HttpHealthCheck.host>`
+                            and  :ref:`authority <envoy_v3_api_field_config.core.v3.HealthCheck.GrpcHealthCheck.authority>`).
+                            Setting this  to a non-empty value allows overriding the
+                            cluster level configuration for a specific  endpoint.'
+                          type: string
+                        port_value:
+                          description: Optional alternative health check port value.   By
+                            default the health check address port of an upstream host
+                            is the same  as the host's serving address port. This
+                            provides an alternative health  check port. Setting this
+                            with a non-zero value allows an upstream host  to have
+                            different health check address port.
+                          format: int32
+                          type: integer
                       type: object
-                      x-kubernetes-preserve-unknown-fields: true
                     hostname:
                       description: The hostname associated with this endpoint. This
                         hostname is not used for routing or address  resolution. If
@@ -862,8 +2385,84 @@ spec:
                 type: object
               policy:
                 description: Load balancing policy settings.
+                properties:
+                  drop_overloads:
+                    description: 'Action to trim the overall incoming traffic to protect
+                      the upstream  hosts. This action allows protection in case the
+                      hosts are unable to  recover from an outage, or unable to autoscale
+                      or unable to handle  incoming traffic volume for any reason.   At
+                      the client each category is applied one after the other to generate  the
+                      ''actual'' drop percentage on all outgoing traffic. For example:   ..
+                      code-block:: json    { "drop_overloads": [       { "category":
+                      "throttle", "drop_percentage": 60 }       { "category": "lb",
+                      "drop_percentage": 50 }   ]}   The actual drop percentages applied
+                      to the traffic at the clients will be     "throttle"_drop =
+                      60%     "lb"_drop = 20%  // 50% of the remaining ''actual''
+                      load, which is 40%.     actual_outgoing_load = 20% // remaining
+                      after applying all categories.   Envoy supports only one element
+                      and will NACK if more than one element is present.  Other xDS-capable
+                      data planes will not necessarily have this limitation.   In
+                      Envoy, this ``drop_overloads`` config can be overridden by a
+                      runtime key  "load_balancing_policy.drop_overload_limit" setting.
+                      This runtime key can be set to  any integer number between 0
+                      and 100. 0 means drop 0%. 100 means drop 100%.  When both ``drop_overloads``
+                      config and "load_balancing_policy.drop_overload_limit"  setting
+                      are in place, the min of these two wins.'
+                    items:
+                      properties:
+                        category:
+                          description: Identifier for the policy specifying the drop.
+                          type: string
+                        drop_percentage:
+                          description: Percentage of traffic that should be dropped
+                            for the category.
+                          properties:
+                            denominator:
+                              description: Specifies the denominator. If the denominator
+                                specified is less than the numerator, the final  fractional
+                                percentage is capped at 1 (100%).
+                              enum:
+                              - HUNDRED
+                              - TEN_THOUSAND
+                              - MILLION
+                              type: string
+                            numerator:
+                              description: Specifies the numerator. Defaults to 0.
+                              format: int32
+                              type: integer
+                          type: object
+                      type: object
+                    type: array
+                  endpoint_stale_after:
+                    description: The max time until which the endpoints from this
+                      assignment can be used.  If no new assignments are received
+                      before this time expires the endpoints  are considered stale
+                      and should be marked unhealthy.  Defaults to 0 which means endpoints
+                      never go stale.
+                    type: string
+                  overprovisioning_factor:
+                    description: 'Priority levels and localities are considered overprovisioned
+                      with this  factor (in percentage). This means that we don''t
+                      consider a priority  level or locality unhealthy until the fraction
+                      of healthy hosts  multiplied by the overprovisioning factor
+                      drops below 100.  With the default value 140(1.4), Envoy doesn''t
+                      consider a priority level  or a locality unhealthy until their
+                      percentage of healthy hosts drops  below 72%. For example:   ..
+                      code-block:: json    { "overprovisioning_factor": 100 }   Read
+                      more at :ref:`priority levels <arch_overview_load_balancing_priority_levels>`
+                      and  :ref:`localities <arch_overview_load_balancing_locality_weighted_lb>`.'
+                    format: int32
+                    type: integer
+                  weighted_priority_health:
+                    description: 'If true, use the :ref:`load balancing weight  <envoy_v3_api_field_config.endpoint.v3.LbEndpoint.load_balancing_weight>`
+                      of healthy and unhealthy  hosts to determine the health of the
+                      priority level. If false, use the number of healthy and unhealthy
+                      hosts  to determine the health of the priority level, or in
+                      other words assume each host has a weight of 1 for  this calculation.   ..
+                      note::    This is not currently implemented for    :ref:`locality
+                      weighted load balancing <arch_overview_load_balancing_locality_weighted_lb>`.'
+                    type: boolean
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
             type: object
           status:
             type: object

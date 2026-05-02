@@ -1,0 +1,21 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: ScopedRouteConfiguration
+metadata:
+  name: canary-scope
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+targetRef:
+  name: {{ .Values.envoy.name }}
+spec:
+  # Envoy ScopedRouteConfiguration proto — field names must match the CRD
+  # schema (snake_case / proto field names).
+  #
+  # This CR demonstrates the ScopedRouteConfiguration CRD type. It is pushed
+  # into the xDS snapshot (ScopedRouteType) via ADS. The example Listener uses
+  # plain RDS (not SRDS), so Envoy holds this resource without applying it.
+  name: canary-scope
+  route_configuration_name: main-routes
+  key:
+    fragments:
+      - string_key: canary

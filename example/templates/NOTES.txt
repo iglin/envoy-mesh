@@ -1,0 +1,51 @@
+envoy-mesh-example installed in namespace {{ .Release.Namespace }}.
+
+Prerequisites
+-------------
+1. CRDs applied:
+     kubectl apply -f crds/
+
+2. envoy-mesh control-plane running and reachable at
+     {{ .Values.envoy.xds.controlPlaneHost }}:{{ .Values.envoy.xds.controlPlanePort }}
+
+3. Helm subchart downloaded (only needed once, or after a Chart.yaml change):
+     helm dependency update example/
+
+Resources deployed
+------------------
+  mesh-app-alpha  (headless, ×{{ .Values.appAlpha.replicas }} replicas)  — ring-hash via x-user-id header
+  mesh-app-beta   (ClusterIP, ×{{ .Values.appBeta.replicas }} replicas)  — cookie-based stateful session
+  Envoy proxy     {{ .Values.envoy.name }}                                — xDS node {{ .Values.envoy.name }}.{{ .Release.Namespace }}
+    image: {{ .Values.envoy.image.repository }}:{{ .Values.envoy.image.tag }}
+
+Try it
+------
+Forward the Envoy service port:
+  kubectl port-forward svc/{{ .Values.envoy.name }} 8080:{{ .Values.envoy.service.port }} -n {{ .Release.Namespace }}
+
+Route to svc-alpha (ring-hash — same x-user-id always hits the same pod):
+  curl -H "x-user-id: alice" http://localhost:8080/alpha
+
+Route to svc-beta (cookie session — sticky after first response):
+  curl -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost:8080/beta
+
+Run the built-in connectivity test:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+Check the EnvoyProxy status:
+  kubectl get envoyproxy {{ .Values.envoy.name }} -n {{ .Release.Namespace }}
+
+Envoy admin UI (open in browser after port-forward):
+  kubectl port-forward deploy/{{ .Values.envoy.name }} 9901:{{ .Values.envoy.admin.port }} -n {{ .Release.Namespace }}
+  open http://localhost:9901
+
+Notes
+-----
+* The headless Service for mesh-app-alpha makes Kubernetes DNS return individual
+  pod IPs. Envoy (STRICT_DNS cluster) resolves them and distributes the ring-hash
+  ring across all pod endpoints — giving true per-pod request stickiness.
+
+* The Envoy subchart is pulled from the published OCI registry:
+    oci://ghcr.io/iglin/envoy-mesh/charts  (version 0.0.4)
+  To use a different version, update the dependency in example/Chart.yaml and
+  re-run: helm dependency update example/

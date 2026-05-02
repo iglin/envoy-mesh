@@ -1,0 +1,31 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-svc-alpha
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+targetRef:
+  name: {{ .Values.envoy.name }}
+spec:
+  # Envoy Cluster proto — field names must match the CRD schema (snake_case /
+  # proto field names).  protojson.Unmarshal accepts both snake_case and
+  # camelCase; the CRD OpenAPI schema only accepts snake_case.
+  name: svc-alpha
+  # STRICT_DNS — Envoy continuously re-resolves the DNS name.
+  # mesh-app-alpha is a headless Service (clusterIP: None), so DNS returns
+  # individual pod IPs.  Each IP becomes a distinct ring endpoint.
+  type: STRICT_DNS
+  lb_policy: RING_HASH
+  ring_hash_lb_config:
+    minimum_ring_size: 64
+  connect_timeout: "5s"
+  load_assignment:
+    cluster_name: svc-alpha
+    endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: "{{ .Values.appAlpha.name }}.{{ .Release.Namespace }}.svc.cluster.local"
+                  port_value: {{ .Values.appAlpha.port }}

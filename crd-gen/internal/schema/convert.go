@@ -26,7 +26,7 @@ func msgSchema(msg *parser.Message, reg *parser.Registry, visited map[string]boo
 	for _, field := range msg.Fields {
 		var fs *apiextensionsv1.JSONSchemaProps
 		if field.Type == "map" {
-			valSchema := resolveType(field.MapValue, false, msg.Package, reg, cloneVisited(visited))
+			valSchema := resolveType(field.MapValue, false, msg.Package, msg.FullName, reg, cloneVisited(visited))
 			fs = &apiextensionsv1.JSONSchemaProps{
 				Type: "object",
 				AdditionalProperties: &apiextensionsv1.JSONSchemaPropsOrBool{
@@ -34,7 +34,7 @@ func msgSchema(msg *parser.Message, reg *parser.Registry, visited map[string]boo
 				},
 			}
 		} else {
-			fs = resolveType(field.Type, field.Repeated, msg.Package, reg, cloneVisited(visited))
+			fs = resolveType(field.Type, field.Repeated, msg.Package, msg.FullName, reg, cloneVisited(visited))
 		}
 		if field.Comment != "" {
 			fs.Description = field.Comment
@@ -50,10 +50,12 @@ func msgSchema(msg *parser.Message, reg *parser.Registry, visited map[string]boo
 
 // resolveType maps a proto field type (scalar or message/enum name) to a schema,
 // wrapping in an array schema when repeated is true.
-func resolveType(typeName string, repeated bool, pkg string, reg *parser.Registry, visited map[string]bool) *apiextensionsv1.JSONSchemaProps {
+// msgFQN is the fully-qualified name of the message that owns this field; it is
+// used to resolve types that are nested enums/messages of that message.
+func resolveType(typeName string, repeated bool, pkg, msgFQN string, reg *parser.Registry, visited map[string]bool) *apiextensionsv1.JSONSchemaProps {
 	s := scalarSchema(typeName)
 	if s == nil {
-		s = resolveMessageOrEnum(typeName, pkg, reg, visited)
+		s = resolveMessageOrEnum(typeName, pkg, msgFQN, reg, visited)
 	}
 	if repeated {
 		return &apiextensionsv1.JSONSchemaProps{
@@ -116,7 +118,7 @@ var wellKnownSchemas = map[string]*apiextensionsv1.JSONSchemaProps{
 	},
 }
 
-func resolveMessageOrEnum(typeName, pkg string, reg *parser.Registry, visited map[string]bool) *apiextensionsv1.JSONSchemaProps {
+func resolveMessageOrEnum(typeName, pkg, msgFQN string, reg *parser.Registry, visited map[string]bool) *apiextensionsv1.JSONSchemaProps {
 	// Strip leading dot from absolute proto references (e.g. ".envoy.config....")
 	typeName = strings.TrimPrefix(typeName, ".")
 
@@ -124,7 +126,7 @@ func resolveMessageOrEnum(typeName, pkg string, reg *parser.Registry, visited ma
 		return s
 	}
 
-	fqn := resolveFQN(typeName, pkg, reg)
+	fqn := resolveFQN(typeName, pkg, msgFQN, reg)
 
 	// Cycle guard — return free-form object to break the recursion.
 	if visited[fqn] {
@@ -148,19 +150,28 @@ func resolveMessageOrEnum(typeName, pkg string, reg *parser.Registry, visited ma
 	return &apiextensionsv1.JSONSchemaProps{Type: "object", XPreserveUnknownFields: boolPtr(true)}
 }
 
-// resolveFQN resolves a possibly-relative type name to a fully-qualified name
-// by trying the current package and its parent prefixes.
-func resolveFQN(typeName, pkg string, reg *parser.Registry) string {
+// resolveFQN resolves a possibly-relative type name to a fully-qualified name.
+// It mirrors proto's own scoping rules: first walk up the enclosing message FQN
+// hierarchy (to find nested enums/messages), then walk up the package hierarchy.
+func resolveFQN(typeName, pkg, msgFQN string, reg *parser.Registry) string {
 	if inRegistry(typeName, reg) {
 		return typeName
 	}
-	fqn := pkg + "." + typeName
-	if inRegistry(fqn, reg) {
-		return fqn
+	// Walk up the enclosing message FQN hierarchy.
+	// e.g. for typeName="DiscoveryType" inside "envoy.config.cluster.v3.Cluster"
+	// tries "envoy.config.cluster.v3.Cluster.DiscoveryType" first.
+	if msgFQN != "" {
+		parts := strings.Split(msgFQN, ".")
+		for i := len(parts); i > 0; i-- {
+			candidate := strings.Join(parts[:i], ".") + "." + typeName
+			if inRegistry(candidate, reg) {
+				return candidate
+			}
+		}
 	}
 	// Walk up the package hierarchy.
 	parts := strings.Split(pkg, ".")
-	for i := len(parts) - 1; i > 0; i-- {
+	for i := len(parts); i > 0; i-- {
 		candidate := strings.Join(parts[:i], ".") + "." + typeName
 		if inRegistry(candidate, reg) {
 			return candidate

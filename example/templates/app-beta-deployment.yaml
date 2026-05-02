@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appBeta.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+    {{- include "example.betaLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.appBeta.replicas }}
+  selector:
+    matchLabels:
+      {{- include "example.betaLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "example.betaLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mesh-app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.appBeta.port }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.appBeta.resources | nindent 12 }}

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appAlpha.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+    {{- include "example.alphaLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.appAlpha.replicas }}
+  selector:
+    matchLabels:
+      {{- include "example.alphaLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "example.alphaLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mesh-app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.appAlpha.port }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.appAlpha.resources | nindent 12 }}

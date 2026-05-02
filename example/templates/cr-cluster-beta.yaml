@@ -1,0 +1,28 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-svc-beta
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+targetRef:
+  name: {{ .Values.envoy.name }}
+spec:
+  # Envoy Cluster proto — field names must match the CRD schema (snake_case /
+  # proto field names).  protojson.Unmarshal accepts both snake_case and
+  # camelCase; the CRD OpenAPI schema only accepts snake_case.
+  name: svc-beta
+  # STRICT_DNS with a normal ClusterIP Service — resolves to the single stable
+  # virtual IP assigned by Kubernetes.
+  type: STRICT_DNS
+  lb_policy: ROUND_ROBIN
+  connect_timeout: "5s"
+  load_assignment:
+    cluster_name: svc-beta
+    endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: "{{ .Values.appBeta.name }}.{{ .Release.Namespace }}.svc.cluster.local"
+                  port_value: {{ .Values.appBeta.port }}

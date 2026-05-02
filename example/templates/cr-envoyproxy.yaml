@@ -1,0 +1,8 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: {{ .Values.envoy.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+spec: {}

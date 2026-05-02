@@ -1,0 +1,4 @@
+# Helm chart dependencies and lock files for the example chart
+example/charts/
+example/Chart.lock
+example/**/*.tgz

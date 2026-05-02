@@ -1,0 +1,47 @@
+apiVersion: mesh.iglin.io/v1alpha1
+kind: Listener
+metadata:
+  name: edge-proxy-listener
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+targetRef:
+  name: {{ .Values.envoy.name }}
+spec:
+  # Envoy Listener proto — field names must match the CRD schema (snake_case /
+  # proto field names).  protojson.Unmarshal accepts both snake_case and
+  # camelCase; the CRD OpenAPI schema only accepts snake_case.
+  name: edge-proxy-listener
+  address:
+    socket_address:
+      address: "0.0.0.0"
+      port_value: {{ .Values.envoy.service.port }}
+  filter_chains:
+    - filters:
+        - name: envoy.filters.network.http_connection_manager
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+            stat_prefix: ingress_http
+            rds:
+              config_source:
+                ads: {}
+                resource_api_version: V3
+              route_config_name: main-routes
+            http_filters:
+              # stateful_session is configured at listener level with a
+              # cookie-based session state.  The /alpha route disables it via
+              # typed_per_filter_config so only /beta gets cookie stickiness.
+              - name: envoy.filters.http.stateful_session
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession
+                  session_state:
+                    name: envoy.http.stateful_session.cookie
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.http.stateful_session.cookie.v3.CookieBasedSessionState
+                      cookie:
+                        name: sticky-session
+                        ttl: "3600s"
+                        path: /beta
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router

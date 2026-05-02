@@ -43,7 +43,7 @@ both the image and chart automatically.
 ## Key values
 
 | Value | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `name` | `envoy` | Name for all resources and `node.id` |
 | `image.repository` | `envoy-mesh-envoy` | Image repository |
 | `image.tag` | `latest` | Image tag |

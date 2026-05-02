@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appAlpha.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+    {{- include "example.alphaLabels" . | nindent 4 }}
+spec:
+  # Headless — DNS returns individual pod IPs so Envoy's STRICT_DNS cluster
+  # builds a real multi-endpoint ring for RING_HASH load balancing.
+  clusterIP: None
+  selector:
+    {{- include "example.alphaLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.appAlpha.port }}
+      targetPort: http
+      protocol: TCP

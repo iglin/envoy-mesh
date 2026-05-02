@@ -1,0 +1,68 @@
+# --------------------------------------------------------------------------- #
+#  Application images
+# --------------------------------------------------------------------------- #
+image:
+  repository: iglin/mesh-app
+  tag: v2.2
+  pullPolicy: IfNotPresent
+
+# --------------------------------------------------------------------------- #
+#  mesh-app-alpha  (headless Service → Envoy sees individual pod IPs for
+#  ring-hash distribution)
+# --------------------------------------------------------------------------- #
+appAlpha:
+  name: mesh-app-alpha
+  replicas: 2
+  port: 8080
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
+
+# --------------------------------------------------------------------------- #
+#  mesh-app-beta  (ClusterIP Service → single stable IP, cookie session
+#  affinity is handled by the Envoy stateful_session HTTP filter)
+# --------------------------------------------------------------------------- #
+appBeta:
+  name: mesh-app-beta
+  replicas: 2
+  port: 8080
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
+
+# --------------------------------------------------------------------------- #
+#  Envoy subchart values  (passed verbatim to the envoy/helm subchart)
+#  name MUST match the EnvoyProxy CR .metadata.name and the bootstrap
+#  node.id/cluster rendered by the subchart: "<name>.<namespace>".
+# --------------------------------------------------------------------------- #
+envoy:
+  name: edge-proxy
+  replicaCount: 1
+  image:
+    repository: ghcr.io/iglin/envoy-mesh-envoy
+    tag: "0.0.4"
+    pullPolicy: IfNotPresent
+  xds:
+    controlPlaneHost: envoy-mesh-control-plane
+    controlPlanePort: 18000
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  admin:
+    port: 9901
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
