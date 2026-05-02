@@ -14,7 +14,7 @@ image:
 xds:
   # Kubernetes Service hostname of the envoy-mesh control-plane.
   # By default resolves within the same namespace; set a FQDN for cross-namespace.
-  controlPlaneHost: envoy-mesh-control-plane
+  controlPlaneHost: control-plane
   controlPlanePort: 18000
 
 service:

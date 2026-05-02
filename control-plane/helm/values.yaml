@@ -1,5 +1,7 @@
 replicaCount: 1
 
+name: control-plane
+
 image:
   repository: envoy-mesh-control-plane
   tag: latest
