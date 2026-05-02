@@ -28,46 +28,57 @@ spec:
             sleep 2
           done
 
+          # mesh-app returns a JSON body that includes request-specific fields
+          # (X-Request-Id, etc.) that change every call. Extract only the stable
+          # per-pod identifier "appId" for stickiness comparisons.
+          app_id() { echo "$1" | grep -oE '"appId":"[^"]*"' | head -1; }
+
           echo ""
           echo "=== /alpha  — RING_HASH via x-user-id header ==="
 
-          echo -n "  GET /alpha x-user-id=alice ... "
-          curl -sf -H "x-user-id: alice" "${ENVOY}/alpha" -o /dev/null && \
-            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
-
-          echo -n "  GET /alpha x-user-id=bob ... "
-          curl -sf -H "x-user-id: bob" "${ENVOY}/alpha" -o /dev/null && \
-            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
-
-          echo -n "  GET /alpha x-user-id=charlie ... "
-          curl -sf -H "x-user-id: charlie" "${ENVOY}/alpha" -o /dev/null && \
-            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
-
-          echo -n "  Stickiness: 3x same x-user-id=sticky-test ... "
-          for i in 1 2 3; do
-            curl -sf -H "x-user-id: sticky-test" "${ENVOY}/alpha" -o /dev/null || \
-              { printf "$FAIL\n"; exit 1; }
+          for user in alice bob charlie; do
+            echo -n "  GET /alpha x-user-id=${user} ... "
+            curl -sf -H "x-user-id: ${user}" "${ENVOY}/alpha" -o /dev/null -m 5 && \
+              printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
           done
-          printf "$OK\n"
+
+          echo -n "  Stickiness (5x x-user-id=sticky-test → same pod) ... "
+          body=$(curl -sf -H "x-user-id: sticky-test" "${ENVOY}/alpha" -m 5)
+          first=$(app_id "$body")
+          [ -z "$first" ] && { printf "${FAIL} (no appId in body)\n"; exit 1; }
+          for i in 2 3 4 5; do
+            body=$(curl -sf -H "x-user-id: sticky-test" "${ENVOY}/alpha" -m 5)
+            got=$(app_id "$body")
+            if [ "$got" != "$first" ]; then
+              printf "${FAIL}\n  request $i appId='$got', expected '$first'\n"
+              exit 1
+            fi
+          done
+          printf "$OK (appId: $first)\n"
 
           echo ""
           echo "=== /beta  — ROUND_ROBIN + CookieBasedStatefulSession ==="
 
           echo -n "  GET /beta (first request, no cookie) ... "
-          curl -sf -c /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
-            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+          body=$(curl -sf -c /tmp/cookies.txt "${ENVOY}/beta" -m 5)
+          first=$(app_id "$body")
+          [ -z "$first" ] && { printf "${FAIL} (no appId in body)\n"; exit 1; }
+          printf "$OK (appId: $first)\n"
 
           echo -n "  sticky-session cookie set by Envoy ... "
           grep -q "sticky-session" /tmp/cookies.txt && \
-            printf "$OK\n" || printf "WARN: cookie not found (filter may need active upstream)\n"
-
-          echo -n "  GET /beta (second request, with cookie jar) ... "
-          curl -sf -b /tmp/cookies.txt -c /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
             printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
 
-          echo -n "  GET /beta (third request, session re-use) ... "
-          curl -sf -b /tmp/cookies.txt "${ENVOY}/beta" -o /dev/null && \
-            printf "$OK\n" || { printf "$FAIL\n"; exit 1; }
+          echo -n "  Stickiness (4x with cookie jar → same pod) ... "
+          for i in 2 3 4 5; do
+            body=$(curl -sf -b /tmp/cookies.txt -c /tmp/cookies.txt "${ENVOY}/beta" -m 5)
+            got=$(app_id "$body")
+            if [ "$got" != "$first" ]; then
+              printf "${FAIL}\n  request $i appId='$got', expected '$first'\n"
+              exit 1
+            fi
+          done
+          printf "$OK (appId: $first)\n"
 
           echo ""
-          echo "=== All connectivity tests passed ==="
+          echo "=== All connectivity and stickiness tests passed ==="
