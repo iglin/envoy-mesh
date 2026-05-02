@@ -12,8 +12,8 @@ spec:
   # proto field names).  protojson.Unmarshal accepts both snake_case and
   # camelCase; the CRD OpenAPI schema only accepts snake_case.
   name: svc-beta
-  # STRICT_DNS with a normal ClusterIP Service — resolves to the single stable
-  # virtual IP assigned by Kubernetes.
+  # STRICT_DNS with a headless Service — DNS returns individual pod IPs so
+  # CookieBasedStatefulSession can encode a specific pod endpoint in the cookie.
   type: STRICT_DNS
   lb_policy: ROUND_ROBIN
   connect_timeout: "5s"

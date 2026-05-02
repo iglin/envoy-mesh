@@ -7,9 +7,12 @@ metadata:
     {{- include "example.labels" . | nindent 4 }}
     {{- include "example.betaLabels" . | nindent 4 }}
 spec:
-  # Normal ClusterIP — single stable virtual IP.  Cookie-based session
-  # stickiness is enforced by the Envoy stateful_session HTTP filter, not
-  # by Kubernetes service routing.
+  # Headless — DNS returns individual pod IPs so that STRICT_DNS in Envoy
+  # sees each pod as a distinct endpoint. CookieBasedStatefulSession encodes
+  # the chosen endpoint address into the cookie and routes subsequent requests
+  # to that specific pod. A ClusterIP VIP would collapse all pods into one
+  # Envoy endpoint, breaking per-pod stickiness.
+  clusterIP: None
   selector:
     {{- include "example.betaLabels" . | nindent 4 }}
   ports:
