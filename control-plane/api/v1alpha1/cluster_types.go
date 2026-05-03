@@ -21,6 +21,23 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// KubernetesServiceRef points to a Kubernetes Service whose live endpoints
+// are automatically translated into a ClusterLoadAssignment for this cluster.
+// The cluster spec must use type: EDS with ads: {} as the eds_config source.
+type KubernetesServiceRef struct {
+	// Name of the Kubernetes Service.
+	// +required
+	Name string `json:"name"`
+	// Namespace of the Service. Defaults to the Cluster CR's namespace.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+	// Port to expose as Envoy endpoints. If omitted, the first port of the Service is used.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port *int32 `json:"port,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
@@ -31,6 +48,12 @@ type Cluster struct {
 
 	// +required
 	TargetRef TargetRef `json:"targetRef"`
+
+	// KubernetesServiceRef auto-discovers endpoints from a Kubernetes Service and
+	// synthesises a ClusterLoadAssignment in memory at reconcile time.
+	// Mutually exclusive with a manual ClusterLoadAssignment CR for the same cluster_name.
+	// +optional
+	KubernetesServiceRef *KubernetesServiceRef `json:"kubernetesServiceRef,omitempty"`
 
 	// Spec holds the Envoy Cluster proto serialised as JSON.
 	// +kubebuilder:pruning:PreserveUnknownFields

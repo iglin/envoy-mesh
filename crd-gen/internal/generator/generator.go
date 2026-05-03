@@ -29,6 +29,10 @@ type Config struct {
 	Group    string
 	Version  string
 	Messages []string // fully-qualified proto message names
+	// KindExtraProps injects additional top-level schema properties per CRD kind.
+	// Key is the proto message short name (e.g. "Cluster").
+	// Ranging over a nil map is safe in Go and produces zero iterations.
+	KindExtraProps map[string]map[string]apiextensionsv1.JSONSchemaProps
 }
 
 // Run is the main entry point: parses protos, generates CRDs, writes YAML.
@@ -78,22 +82,27 @@ func buildCRD(msg *parser.Message, cfg Config, reg *parser.Registry) *apiextensi
 
 	specSchema := schema.MessageToSchema(msg, reg)
 
-	topLevelSchema := &apiextensionsv1.JSONSchemaProps{
-		Type:     "object",
-		Required: []string{"targetRef"},
-		Properties: map[string]apiextensionsv1.JSONSchemaProps{
-			"targetRef": {
-				Type:        "object",
-				Description: "Reference to the EnvoyProxy CR that this resource is assigned to.",
-				Required:    []string{"name"},
-				Properties: map[string]apiextensionsv1.JSONSchemaProps{
-					"name":      {Type: "string", Description: "Name of the EnvoyProxy CR."},
-					"namespace": {Type: "string", Description: "Namespace of the EnvoyProxy CR. Defaults to the namespace of this resource."},
-				},
+	topLevelProps := map[string]apiextensionsv1.JSONSchemaProps{
+		"targetRef": {
+			Type:        "object",
+			Description: "Reference to the EnvoyProxy CR that this resource is assigned to.",
+			Required:    []string{"name"},
+			Properties: map[string]apiextensionsv1.JSONSchemaProps{
+				"name":      {Type: "string", Description: "Name of the EnvoyProxy CR."},
+				"namespace": {Type: "string", Description: "Namespace of the EnvoyProxy CR. Defaults to the namespace of this resource."},
 			},
-			"spec":   *specSchema,
-			"status": {Type: "object", XPreserveUnknownFields: boolPtr(true)},
 		},
+		"spec":   *specSchema,
+		"status": {Type: "object", XPreserveUnknownFields: boolPtr(true)},
+	}
+	for k, v := range cfg.KindExtraProps[kind] {
+		topLevelProps[k] = v
+	}
+
+	topLevelSchema := &apiextensionsv1.JSONSchemaProps{
+		Type:       "object",
+		Required:   []string{"targetRef"},
+		Properties: topLevelProps,
 	}
 
 	return &apiextensionsv1.CustomResourceDefinition{
@@ -143,3 +152,5 @@ func marshalCRD(crd *apiextensionsv1.CustomResourceDefinition) ([]byte, error) {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+func float64Ptr(f float64) *float64 { return &f }

@@ -18,6 +18,28 @@ spec:
     schema:
       openAPIV3Schema:
         properties:
+          kubernetesServiceRef:
+            description: 'Auto-discovers endpoints from a Kubernetes Service and synthesises
+              a ClusterLoadAssignment in memory. The cluster spec must use type: EDS
+              with ads: {} as the eds_config source.'
+            properties:
+              name:
+                description: Name of the Kubernetes Service.
+                type: string
+              namespace:
+                description: Namespace of the Service. Defaults to the Cluster CR's
+                  namespace.
+                type: string
+              port:
+                description: Port to expose as Envoy endpoints. If omitted, the first
+                  port of the Service is used.
+                format: int32
+                maximum: 65535
+                minimum: 1
+                type: integer
+            required:
+            - name
+            type: object
           spec:
             description: 'Configuration for a single upstream cluster.  [#next-free-field:
               60]'

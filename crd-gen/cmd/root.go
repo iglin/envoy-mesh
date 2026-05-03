@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
 	"github.com/iglin/envoy-mesh/crd-gen/internal/generator"
 	"github.com/spf13/cobra"
 )
@@ -20,8 +22,35 @@ var rootCmd = &cobra.Command{
   crd-gen --proto-dir ./proto --out-dir ./crds --group mesh.example.io \
           -m envoy.config.listener.v3.Listener`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg.KindExtraProps = kindExtraProps()
 		return generator.Run(cfg)
 	},
+}
+
+// kindExtraProps returns additional top-level CRD schema properties that are
+// Kubernetes-specific (not derived from Envoy proto) and must be injected per kind.
+func kindExtraProps() map[string]map[string]apiextensionsv1.JSONSchemaProps {
+	f64 := func(v float64) *float64 { return &v }
+	return map[string]map[string]apiextensionsv1.JSONSchemaProps{
+		"Cluster": {
+			"kubernetesServiceRef": {
+				Type:        "object",
+				Description: "Auto-discovers endpoints from a Kubernetes Service and synthesises a ClusterLoadAssignment in memory. The cluster spec must use type: EDS with ads: {} as the eds_config source.",
+				Required:    []string{"name"},
+				Properties: map[string]apiextensionsv1.JSONSchemaProps{
+					"name":      {Type: "string", Description: "Name of the Kubernetes Service."},
+					"namespace": {Type: "string", Description: "Namespace of the Service. Defaults to the Cluster CR's namespace."},
+					"port": {
+						Type:        "integer",
+						Format:      "int32",
+						Description: "Port to expose as Envoy endpoints. If omitted, the first port of the Service is used.",
+						Minimum:     f64(1),
+						Maximum:     f64(65535),
+					},
+				},
+			},
+		},
+	}
 }
 
 func Execute() {
