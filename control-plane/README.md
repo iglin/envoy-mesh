@@ -8,12 +8,17 @@ xDS snapshots served over gRPC/ADS on port 18000.
 1. User applies xDS resource CRs (`Listener`, `Cluster`, `RouteConfiguration`,
    `ScopedRouteConfiguration`, `ClusterLoadAssignment`) with a `targetRef`
    pointing to an `EnvoyProxy` CR.
-2. The `EnvoyProxyReconciler` watches all resource types, groups them by
-   `targetRef`, and builds one xDS snapshot per `EnvoyProxy`.
-3. Snapshots are pushed to connected Envoy instances via a single
+2. `Cluster` CRs may include a `kubernetesServiceRef` field. The reconciler
+   lists the matching `EndpointSlices` and synthesises a `ClusterLoadAssignment`
+   in memory (`internal/xds/eds.go`) — no manual CLA CR needed. Manual CLA CRs
+   always take precedence over auto-synthesised ones.
+3. The `EnvoyProxyReconciler` watches all xDS resource types **and**
+   `EndpointSlice` objects, groups everything by `targetRef`, and builds one xDS
+   snapshot per `EnvoyProxy`.
+4. Snapshots are pushed to connected Envoy instances via a single
    [go-control-plane](https://github.com/envoyproxy/go-control-plane) ADS
    stream. Node ID = `{EnvoyProxy.name}.{EnvoyProxy.namespace}`.
-4. `EnvoyProxy` status conditions reflect connection state (`Connected`) and
+5. `EnvoyProxy` status conditions reflect connection state (`Connected`) and
    whether a snapshot has been pushed (`Ready`).
 
 ## Prerequisites
@@ -45,12 +50,12 @@ helm install control-plane ./helm \
   --set image.tag=<tag>
 ```
 
-### From OCI registry (after publishing)
+### From OCI registry
 
 ```bash
 helm install control-plane \
   oci://ghcr.io/iglin/envoy-mesh/charts/envoy-mesh-control-plane \
-  --version <version> \
+  --version 0.0.5 \
   --namespace envoy-mesh-system --create-namespace
 ```
 
@@ -66,8 +71,8 @@ Or push a `control-plane/v<semver>` git tag to let
 publish both the image and chart automatically:
 
 ```bash
-git tag control-plane/v1.0.0
-git push origin control-plane/v1.0.0
+git tag control-plane/v0.0.5
+git push origin control-plane/v0.0.5
 ```
 
 ## Run locally

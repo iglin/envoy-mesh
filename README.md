@@ -25,6 +25,7 @@ EnvoyProxy CR  +  xDS resource CRs
 | `crd-gen/` | Go CLI that generates `crds/` from `proto/` |
 | `control-plane/` | Kubernetes operator + Helm chart |
 | `envoy/` | Envoy proxy Dockerfile + Helm chart |
+| `example/` | End-to-end demo chart: two apps, Envoy proxy, all xDS CRs |
 | `.github/workflows/` | CI/CD — publish image and Helm chart on version tags |
 
 ## Prerequisites
@@ -119,8 +120,8 @@ Push a version tag — the corresponding workflow builds and publishes both the
 image and the Helm chart to `ghcr.io` automatically:
 
 ```bash
-git tag control-plane/v1.0.0 && git push origin control-plane/v1.0.0
-git tag envoy/v1.0.0         && git push origin envoy/v1.0.0
+git tag control-plane/v0.0.5 && git push origin control-plane/v0.0.5
+git tag envoy/v0.0.5         && git push origin envoy/v0.0.5
 ```
 
 | Tag pattern | Workflow |
@@ -153,7 +154,7 @@ Or from the OCI registry:
 ```bash
 helm install control-plane \
   oci://ghcr.io/iglin/envoy-mesh/charts/envoy-mesh-control-plane \
-  --version <version> \
+  --version 0.0.5 \
   --namespace envoy-mesh-system --create-namespace
 ```
 
@@ -187,7 +188,7 @@ Or from the OCI registry:
 ```bash
 helm install edge-proxy \
   oci://ghcr.io/iglin/envoy-mesh/charts/envoy \
-  --version <version> \
+  --version 0.0.5 \
   --namespace default \
   --set name=edge-proxy \
   --set xds.controlPlaneHost=control-plane-envoy-mesh-control-plane.envoy-mesh-system
@@ -208,6 +209,30 @@ spec:
   # ...
 targetRef:
   name: edge-proxy
+```
+
+For EDS-backed clusters, add `kubernetesServiceRef` to a `Cluster` CR instead of a
+manual `ClusterLoadAssignment` — the operator synthesises endpoints automatically
+from Kubernetes `EndpointSlices`:
+
+```yaml
+apiVersion: mesh.iglin.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-cluster
+  namespace: default
+targetRef:
+  name: edge-proxy
+kubernetesServiceRef:
+  name: my-svc
+  port: 8080
+spec:
+  name: my-cluster
+  type: EDS
+  eds_cluster_config:
+    eds_config:
+      resource_api_version: V3
+      ads: {}
 ```
 
 The operator picks up the CR, rebuilds the xDS snapshot, and pushes it to the

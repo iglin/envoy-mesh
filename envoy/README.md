@@ -20,11 +20,11 @@ make docker-build-push IMG=<registry>/envoy-mesh-envoy:<tag>
 # From local chart
 helm install envoy ./helm -n default --create-namespace \
   --set image.repository=<registry>/envoy-mesh-envoy \
-  --set image.tag=<tag>
+  --set image.tag=0.0.5
 
-# From OCI registry (after publishing)
+# From OCI registry
 helm install envoy oci://ghcr.io/iglin/envoy-mesh/charts/envoy \
-  --version <version> -n default --create-namespace
+  --version 0.0.5 -n default --create-namespace
 ```
 
 Use `--set name=<value>` to rename the proxy (changes Deployment, Service,
@@ -38,7 +38,7 @@ make helm-push HELM_REGISTRY=ghcr.io/<org>/envoy-mesh/charts
 
 Or push a `envoy/v<semver>` git tag to let
 [GitHub Actions](../.github/workflows/publish-envoy.yml) build and publish
-both the image and chart automatically.
+both the image and chart automatically. Current published version: `0.0.5`.
 
 ## Key values
 

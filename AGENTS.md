@@ -23,14 +23,16 @@ envoy-mesh/
 ├── control-plane/            # Kubernetes operator (kubebuilder v4, go module: github.com/iglin/envoy-mesh/control-plane)
 │   ├── api/v1alpha1/         # Go types for all CRDs (group: mesh.iglin.io)
 │   │   ├── envoyproxy_types.go
-│   │   ├── {listener,cluster,route*,clusterloadassignment}_types.go
+│   │   ├── cluster_types.go  # includes KubernetesServiceRef for EDS auto-synthesis
+│   │   ├── {listener,route*,clusterloadassignment}_types.go
 │   │   └── zz_generated.deepcopy.go
 │   ├── internal/
 │   │   ├── controller/
-│   │   │   └── envoyproxy_controller.go  # single reconciler, watches all xDS resource types
+│   │   │   └── envoyproxy_controller.go  # single reconciler, watches all xDS types + EndpointSlices
 │   │   └── xds/
 │   │       ├── server.go     # go-control-plane gRPC xDS server + connection tracking
-│   │       └── snapshot.go   # protojson → Envoy proto → xDS snapshot
+│   │       ├── snapshot.go   # protojson → Envoy proto → xDS snapshot
+│   │       └── eds.go        # EDS helpers: ClusterName, SynthesizeCLA, resolvePort
 │   ├── cmd/main.go           # starts controller-runtime manager + xDS gRPC server
 │   └── helm/                 # Helm chart: Deployment + Service + RBAC
 │       ├── Chart.yaml
@@ -39,10 +41,14 @@ envoy-mesh/
 │           ├── deployment.yaml
 │           ├── service.yaml          # ClusterIP on port 18000 (xds-grpc)
 │           ├── serviceaccount.yaml
-│           ├── clusterrole.yaml      # mesh.iglin.io RBAC from kubebuilder markers
+│           ├── clusterrole.yaml      # mesh.iglin.io + discovery.k8s.io RBAC
 │           ├── clusterrolebinding.yaml
 │           ├── role.yaml             # leader-election (configmaps/leases/events)
 │           └── rolebinding.yaml
+├── example/                  # End-to-end demo chart (envoy subchart + two apps + all xDS CRs)
+│   ├── Chart.yaml            # depends on oci://ghcr.io/iglin/envoy-mesh/charts/envoy:0.0.5
+│   ├── values.yaml
+│   └── templates/            # app Deployments/Services + EnvoyProxy + Listener/Cluster/Route CRs
 └── .github/workflows/
     ├── publish-control-plane.yml  # triggered by control-plane/v* tags
     └── publish-envoy.yml          # triggered by envoy/v* tags
@@ -68,14 +74,24 @@ spec:
   # ... Envoy config fields ...
 ```
 
+`Cluster` CRs additionally support an optional `kubernetesServiceRef` field (not part of the Envoy proto, injected by `crd-gen`). When set, the control-plane auto-synthesises a `ClusterLoadAssignment` from the matching Kubernetes `EndpointSlices` — no manual CLA CR required. A manual `ClusterLoadAssignment` CR for the same cluster name always takes precedence.
+
+```yaml
+kubernetesServiceRef:
+  name: my-svc           # Kubernetes Service name
+  namespace: default     # defaults to the Cluster CR's namespace
+  port: 8080             # port to expose; defaults to first Service port
+```
+
 The control-plane groups xDS resource CRs by `targetRef` and builds one xDS snapshot per `EnvoyProxy`.
 
 ## How it works
 
 ```
-User CR applied → EnvoyProxyReconciler triggered (via Watches on all xDS resource types)
+User CR applied → EnvoyProxyReconciler triggered (via Watches on all xDS resource types + EndpointSlices)
   → collect all xDS CRs with matching targetRef
   → protojson.Unmarshal each CR spec → typed Envoy proto
+  → for Cluster CRs with kubernetesServiceRef: list EndpointSlices → SynthesizeCLA in memory
   → cache.NewSnapshot(version) → SnapshotCache.SetSnapshot(nodeID)
   → Envoy proxies pull updated config via gRPC ADS (:18000)
   → EnvoyProxy status updated (Connected / Ready conditions)
@@ -83,7 +99,8 @@ User CR applied → EnvoyProxyReconciler triggered (via Watches on all xDS resou
 
 ### control-plane internals
 
-- **Single reconciler** (`EnvoyProxyReconciler`) owns the full reconcile loop. It watches `EnvoyProxy` directly and all five xDS resource types via `handler.EnqueueRequestsFromMapFunc`, mapping each CR's `targetRef` back to its owning `EnvoyProxy`.
+- **Single reconciler** (`EnvoyProxyReconciler`) owns the full reconcile loop. It watches `EnvoyProxy` directly, all five xDS resource types, and `EndpointSlice` objects via `handler.EnqueueRequestsFromMapFunc`, mapping each back to the owning `EnvoyProxy`.
+- **EDS auto-synthesis** (`internal/xds/eds.go`): `SynthesizeCLA` builds a `ClusterLoadAssignment` proto from `EndpointSlice` items — only for clusters that have a `kubernetesServiceRef` and no manual `ClusterLoadAssignment` CR. Manual CLA CRs always win. `EndpointSlice` changes trigger reconciliation via `mapEndpointSliceToProxies`.
 - **Spec storage**: xDS resource CR specs are stored as `runtime.RawExtension` (raw JSON). At reconcile time `protojson.Unmarshal` (with `DiscardUnknown: true`) converts them to typed Envoy proto messages.
 - **Snapshot versioning**: first 16 hex chars of SHA-256 over all `resourceVersion` strings — unchanged configs never push a new snapshot.
 - **xDS server**: a single `go-control-plane` gRPC server per process. `CallbackFuncs.StreamRequestFunc` marks a node connected on first request; `StreamClosedFunc` unmarks it. Connection state is reflected in the `Connected` status condition.
@@ -169,9 +186,11 @@ cd envoy         && make helm-push HELM_REGISTRY=ghcr.io/<org>/envoy-mesh/charts
 
 Or push a versioned tag to trigger GitHub Actions:
 ```bash
-git tag control-plane/v1.0.0 && git push origin control-plane/v1.0.0
-git tag envoy/v1.0.0         && git push origin envoy/v1.0.0
+git tag control-plane/v0.0.5 && git push origin control-plane/v0.0.5
+git tag envoy/v0.0.5         && git push origin envoy/v0.0.5
 ```
+
+Current published versions: `control-plane:0.0.5`, `envoy:0.0.5` (OCI: `ghcr.io/iglin/envoy-mesh/charts/`).
 
 ## Rules
 
@@ -185,6 +204,8 @@ git tag envoy/v1.0.0         && git push origin envoy/v1.0.0
 - Do not add a `Status` subresource or status fields to xDS resource CRs (Listener, Cluster, etc.) — status lives only on `EnvoyProxy`.
 - `envoy/helm` and `control-plane/helm` are hand-authored — do not overwrite with kubebuilder or crd-gen tooling.
 - The `name` value in `envoy/helm/values.yaml` must match the `EnvoyProxy` CR name deployed in the same namespace.
+- `kubernetesServiceRef` on `Cluster` is a Kubernetes-only field (not in Envoy proto). It is injected into the CRD schema via `crd-gen/cmd/root.go` (`kindExtraProps`), not via proto. Do not add it to proto definitions.
+- EDS auto-synthesis only runs when `kubernetesServiceRef` is set and no manual `ClusterLoadAssignment` CR exists for that cluster name. Manual CLA CRs always take precedence.
 
 ## Key libraries
 
